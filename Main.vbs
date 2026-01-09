@@ -4,8 +4,8 @@ Dim shell, fso, urlImmagine, urlMessaggio, percorsoLocale, percorsoScript, scrip
 Dim messaggioDalWeb, exec, comandoScaricaTesto, file
 
 ' --- CONFIGURAZIONE URL ---
-urlImmagine = "https://raw.githubusercontent.com/StangaSquola/Immagine/main/immagine.jpg"
-urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/Immagine/main/messaggio.txt"
+urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/immagine.jpg"
+urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/messaggio.txt"
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -76,4 +76,5 @@ fso.DeleteFile percorsoScript
 On Error GoTo 0
 
 Set fso = Nothing
+
 Set shell = Nothing
