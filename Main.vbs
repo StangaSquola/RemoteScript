@@ -3,14 +3,15 @@ Option Explicit
 Dim shell, fso, urlImmagine, urlMessaggio, percorsoLocale, percorsoScript, scriptPS, comandoPopup
 Dim messaggioDalWeb, exec, comandoScaricaTesto, file
 
-' --- CONFIGURAZIONE URL ---
-urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/immagine.jpg"
-urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/messaggio.txt"
+' --- CONFIGURAZIONE URL AGGIORNATA ---
+urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine.jpg"
+urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt"
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 ' --- 1. RECUPERA IL MESSAGGIO DA GITHUB ---
+' Usiamo PowerShell per scaricare il testo in modo sicuro
 comandoScaricaTesto = "powershell -WindowStyle Hidden -NoProfile -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadString('" & urlMessaggio & "')"""
 
 Set exec = shell.Exec(comandoScaricaTesto)
@@ -18,13 +19,12 @@ messaggioDalWeb = exec.StdOut.ReadAll
 messaggioDalWeb = Trim(messaggioDalWeb)
 
 ' Se il file è vuoto o non raggiungibile
-If messaggioDalWeb = "" Then messaggioDalWeb = "Messaggio non disponibile"
+If messaggioDalWeb = "" Then messaggioDalWeb = "Messaggio predefinito: Benvenuto!"
 
-' --- 2. MOSTRA IL POPUP (Solo con il messaggio da GitHub) ---
-' Ho rimosso ogni riferimento ai giorni di Natale
+' --- 2. MOSTRA IL POPUP ---
 comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -AssemblyName System.Windows.Forms; " & _
     "$form = New-Object System.Windows.Forms.Form; " & _
-    "$form.Text = 'GEA'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
+    "$form.Text = 'GEA - Notifica'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
     "$form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedDialog'; " & _
     "$form.MaximizeBox = $false; $form.MinimizeBox = $false; $form.ControlBox = $false; " & _
     "$form.TopMost = $true; " & _
@@ -39,11 +39,12 @@ comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -A
     "$panel.Controls.Add($btn); $form.Controls.Add($panel); " & _
     "$form.ShowDialog() | Out-Null"""
 
-' Esecuzione popup
+' Esecuzione popup (aspetta che l'utente clicchi OK)
 shell.Run comandoPopup, 0, True
 
 ' --- 3. CAMBIO SFONDO ---
-percorsoLocale = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\sfondo_natale.jpg"
+' Salviamo l'immagine nella cartella Immagini dell'utente
+percorsoLocale = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\sfondo_remoto.jpg"
 percorsoScript = shell.ExpandEnvironmentStrings("%TEMP%") & "\cambia_sfondo.ps1"
 
 scriptPS = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12" & vbCrLf & _
@@ -63,6 +64,7 @@ scriptPS = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolT
     "    }" & vbCrLf & _
     "} catch {}"
 
+' Crea ed esegue il file PowerShell temporaneo
 Set file = fso.CreateTextFile(percorsoScript, True)
 file.Write scriptPS
 file.Close
@@ -72,9 +74,8 @@ shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ 
 ' --- 4. PULIZIA ---
 WScript.Sleep 2000
 On Error Resume Next
-fso.DeleteFile percorsoScript
+If fso.FileExists(percorsoScript) Then fso.DeleteFile percorsoScript
 On Error GoTo 0
 
 Set fso = Nothing
-
 Set shell = Nothing
