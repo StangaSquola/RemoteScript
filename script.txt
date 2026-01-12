@@ -22,7 +22,7 @@ End If
 If messaggioDalWeb <> "" Then
     Dim comandoPopup
     comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -AssemblyName System.Windows.Forms; " & _
-        "$form = New-Object System.Windows.Forms.Form; $form.Text = 'Sistema'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
+        "$form = New-Object System.Windows.Forms.Form; $form.Text = 'GEA'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
         "$form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedDialog'; $form.ControlBox = $false; $form.TopMost = $true; " & _
         "$label = New-Object System.Windows.Forms.Label; $label.Text = '" & messaggioDalWeb & "'; $label.TextAlign = 'MiddleCenter'; $label.Dock = 'Fill'; " & _
         "$label.Font = New-Object System.Drawing.Font('Segoe UI', 11); " & _
@@ -58,4 +58,5 @@ shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ 
 ' --- 4. PULIZIA ---
 WScript.Sleep 5000
 If fso.FileExists(percorsoScript) Then fso.DeleteFile percorsoScript
+
 
