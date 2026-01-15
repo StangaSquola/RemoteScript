@@ -54,7 +54,7 @@ End If
 If messaggioDalWeb <> "" Then
     Dim comandoPopup
     comandoPopup = "powershell -WindowStyle Hidden -NoProfile -Command ""Add-Type -AssemblyName System.Windows.Forms; " & _
-        "$form = New-Object System.Windows.Forms.Form; $form.Text = 'SISTEMA'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
+        "$form = New-Object System.Windows.Forms.Form; $form.Text = 'GEA'; $form.Size = New-Object System.Drawing.Size(400,180); " & _
         "$form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedDialog'; $form.ControlBox = $false; $form.TopMost = $true; " & _
         "$label = New-Object System.Windows.Forms.Label; $label.Text = '" & messaggioDalWeb & "'; $label.TextAlign = 'MiddleCenter'; $label.Dock = 'Fill'; " & _
         "$label.Font = New-Object System.Drawing.Font('Segoe UI', 11); " & _
@@ -135,3 +135,4 @@ Sub InviaNotificaDiscordPS(webhook, utente, pc, messaggio)
     WScript.Sleep 2000
     If fso.FileExists(percorsoWebhook) Then fso.DeleteFile percorsoWebhook
 End Sub
+
