@@ -8,9 +8,9 @@ Dim urlMessaggio, webhookURL
 Dim messaggioDalWeb, nomeUtente, nomePC 
 Dim scelta1, scelta2, scelta3, sceltaEffettuata 
 
-scelta1 = "0" 
-scelta2 = "1" 
-scelta3 = "2" 
+scelta1 = "San Mauro" 
+scelta2 = "San Mario" 
+scelta3 = "San Matteo" 
 
 Dim ts: ts = Timer()
 urlImmagineOK = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagineOK.jpg?v=" & ts
@@ -106,3 +106,4 @@ Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta)
                    "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
     shell.Run cmd, 0, True 
 End Sub
+
