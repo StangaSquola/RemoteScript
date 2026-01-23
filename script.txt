@@ -3,7 +3,7 @@ On Error Resume Next
 
 ' --- CONFIGURAZIONE --- 
 Dim shell, fso, xmlHttp, i, exec 
-Dim urlImmagineOK, urlImmagineNO, urlAudioOK, urlAudioNO 
+Dim urlImmagine1, urlImmagine2,urlImmagine3, urlAudio1, urlAudio2, urlAudio3 
 Dim urlMessaggio, webhookURL 
 Dim messaggioDalWeb, nomeUtente, nomePC 
 Dim scelta1, scelta2, scelta3, sceltaEffettuata 
@@ -13,10 +13,12 @@ scelta2 = "San Mario"
 scelta3 = "" 
 
 Dim ts: ts = Timer()
-urlImmagineOK = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagineOK.jpg?v=" & ts
-urlImmagineNO = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagineNO.jpg?v=" & ts
-urlAudioOK = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audioOK.mp3" 
-urlAudioNO = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audioNO.mp3" 
+urlImmagine1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine1.jpg?v=" & ts
+urlImmagine2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine2.jpg?v=" & ts
+urlImmagine3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine3.jpg?v=" & ts
+urlAudio1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio1.mp3" 
+urlAudio2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
+urlAudio3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
 urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt" 
 webhookURL = "https://webhook.site/464b61af-bd8c-4b91-b645-d9a7842832c0" 
 
@@ -66,9 +68,9 @@ End If
 
 ' --- LOGICA --- 
 Select Case sceltaEffettuata 
-    Case scelta1: RiproduciAudio urlAudioNO: CambiaFondoDesktop urlImmagineNO 
-    Case scelta2: RiproduciAudio urlAudioOK: CambiaFondoDesktop urlImmagineOK
-    Case scelta3: RiproduciAudio urlAudioNO: CambiaFondoDesktop urlImmagineNO 
+    Case scelta1: RiproduciAudio urlAudio1: CambiaFondoDesktop urlImmagine1 
+    Case scelta2: RiproduciAudio urlAudio2: CambiaFondoDesktop urlImmagine2
+    Case scelta3: RiproduciAudio urlAudio3: CambiaFondoDesktop urlImmagine3 
 End Select 
 
 ' --- NOTIFICA FINALE --- 
