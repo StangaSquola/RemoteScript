@@ -7,6 +7,8 @@ Dim urlImmagine1, urlImmagine2, urlImmagine3, urlAudio1, urlAudio2, urlAudio3
 Dim urlMessaggio, webhookURL 
 Dim messaggioDalWeb, nomeUtente, nomePC 
 Dim scelta1, scelta2, scelta3, sceltaEffettuata 
+' Variabili temporanee per la sanificazione
+Dim msgSafe, s1Safe, s2Safe, s3Safe
 
 scelta1 = "Non vedo l'ora!" 
 scelta2 = "" 
@@ -37,13 +39,19 @@ xmlHttp.Open "GET", urlMessaggio, False
 xmlHttp.Send 
 If xmlHttp.Status = 200 Then 
     messaggioDalWeb = Trim(xmlHttp.responseText)
-    ' --- SOLUZIONE: Sanificazione Apici per PowerShell ---
-    messaggioDalWeb = Replace(messaggioDalWeb, "'", "''")
+    ' NOTA: Qui NON facciamo il Replace, lo facciamo solo prima del popup
 End If 
 
 ' --- VOLUME --- 
 shell.SendKeys Chr(&hAD)  
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
+
+' --- PREPARAZIONE POPUP (Sanificazione) ---
+' Creiamo variabili "Safe" solo per PowerShell, lasciando le originali intatte per il confronto finale
+msgSafe = Replace(messaggioDalWeb, "'", "''")
+s1Safe = Replace(scelta1, "'", "''")
+s2Safe = Replace(scelta2, "'", "''")
+s3Safe = Replace(scelta3, "'", "''")
 
 ' --- POPUP (Versione Robusta) --- 
 If messaggioDalWeb <> "" Then 
@@ -51,27 +59,31 @@ If messaggioDalWeb <> "" Then
     psPopup = "Add-Type -AssemblyName System.Windows.Forms; " & _ 
                "$f = New-Object Windows.Forms.Form; $f.Text = 'GEA'; $f.Size = '420,220'; " & _ 
                "$f.StartPosition = 'CenterScreen'; $f.FormBorderStyle = 'FixedDialog'; $f.ControlBox = $false; $f.TopMost = $true; " & _ 
-               "$l = New-Object Windows.Forms.Label; $l.Text = '" & messaggioDalWeb & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
+               "$l = New-Object Windows.Forms.Label; $l.Text = '" & msgSafe & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
                "$l.Dock = 'Fill'; $l.Font = New-Object Drawing.Font('Segoe UI', 12); $f.Controls.Add($l); " & _ 
                "$p = New-Object Windows.Forms.FlowLayoutPanel; $p.Dock = 'Bottom'; $p.Height = 60; " & _ 
                "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; "
-      
-    If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & scelta1 & "'; $b1.AutoSize = $true; $b1.Add_Click({$global:res='" & scelta1 & "';$f.Close()}); $p.Controls.Add($b1); " 
-    If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & scelta2 & "'; $b2.AutoSize = $true; $b2.Add_Click({$global:res='" & scelta2 & "';$f.Close()}); $p.Controls.Add($b2); " 
-    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & scelta3 & "'; $b3.AutoSize = $true; $b3.Add_Click({$global:res='" & scelta3 & "';$f.Close()}); $p.Controls.Add($b3); " 
-      
+       
+    ' Nota: Qui uso s1Safe per il testo del bottone, ma passo s1Safe anche al risultato
+    ' PowerShell convertirà automaticamente i doppi apici in singoli quando li restituisce.
+    If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & s1Safe & "'; $b1.AutoSize = $true; $b1.Add_Click({$global:res='" & s1Safe & "';$f.Close()}); $p.Controls.Add($b1); " 
+    If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & s2Safe & "'; $b2.AutoSize = $true; $b2.Add_Click({$global:res='" & s2Safe & "';$f.Close()}); $p.Controls.Add($b2); " 
+    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & s3Safe & "'; $b3.AutoSize = $true; $b3.Add_Click({$global:res='" & s3Safe & "';$f.Close()}); $p.Controls.Add($b3); " 
+       
     psPopup = psPopup & "$f.Add_Shown({ " & _ 
                "$totalWidth = 0; foreach($ctrl in $p.Controls) { $totalWidth += $ctrl.Width + $ctrl.Margin.Left + $ctrl.Margin.Right }; " & _ 
                "$leftPadding = ($p.Width - $totalWidth) / 2; if($leftPadding -gt 0) { $p.Padding = New-Object Windows.Forms.Padding($leftPadding, 10, 0, 0) } " & _ 
                "}); " 
     psPopup = psPopup & "$f.Controls.Add($p); $f.ShowDialog() | Out-Null; Write-Output $global:res" 
-      
+       
     ' Uso di Chr(34) per gestire correttamente le virgolette esterne
-    Set exec = shell.Exec("powershell -WindowStyle Hidden -NoProfile -Command " & Chr(34) & psPopup & Chr(34)) 
+    ' Rimosso -WindowStyle Hidden che spesso nasconde anche il form
+    Set exec = shell.Exec("powershell -NoProfile -Command " & Chr(34) & psPopup & Chr(34)) 
     sceltaEffettuata = Replace(Replace(Replace(exec.StdOut.ReadAll(), vbCrLf, ""), vbCr, ""), vbLf, "") 
 End If 
 
 ' --- LOGICA --- 
+' Qui usiamo le variabili ORIGINALI (senza doppi apici) perché PowerShell ci restituisce il testo pulito
 Select Case sceltaEffettuata 
     Case scelta1: RiproduciAudio urlAudio1: CambiaFondoDesktop urlImmagine1
     Case scelta2: RiproduciAudio urlAudio2: CambiaFondoDesktop urlImmagine2
@@ -81,17 +93,16 @@ End Select
 ' --- NOTIFICA FINALE --- 
 InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, messaggioDalWeb, sceltaEffettuata 
 
-' --- FUNZIONI --- (Invariate, ma incluse per completezza)
+' --- FUNZIONI --- (Invariate)
 Sub RiproduciAudio(urlAudio) 
     Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
     shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
 
     If fso.FileExists(p) Then 
-        ' Avvia un processo PowerShell separato e nascosto che gestisce l'audio
         Dim psCmd
         psCmd = "powershell -WindowStyle Hidden -Command ""Add-Type -AssemblyName PresentationCore; " & _
                 "$m = New-Object System.Windows.Media.MediaPlayer; " & _
-                "$m.Open('" & p & "'); $m.Play(); Start-Sleep -Seconds 300""" ' 300 è la durata massima stimata
+                "$m.Open('" & p & "'); $m.Play(); Start-Sleep -Seconds 300""" 
         shell.Run psCmd, 0, False 
     End If 
 End Sub
@@ -116,7 +127,3 @@ Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta)
                    "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
     shell.Run cmd, 0, True 
 End Sub
-
-
-
-
