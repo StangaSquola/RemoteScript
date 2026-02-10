@@ -41,9 +41,7 @@ If xmlHttp.Status = 200 Then
     messaggioDalWeb = Trim(xmlHttp.responseText)
 End If 
 
-' --- VOLUME --- 
-shell.SendKeys Chr(&hAD)  
-For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
+
 
 ' --- PREPARAZIONE POPUP ---
 msgSafe = Replace(messaggioDalWeb, "'", "''")
@@ -106,6 +104,12 @@ InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, msgFinal, sceltaFinal
 ' --- FUNZIONI ---
 
 Sub RiproduciAudio(urlAudio) 
+
+	' --- VOLUME --- 
+shell.SendKeys Chr(&hAD)  
+For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
+
+
     Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
     shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
 
