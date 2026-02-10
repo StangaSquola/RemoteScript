@@ -20,7 +20,7 @@ urlAudio1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/au
 urlAudio2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
 urlAudio3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
 urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt" 
-webhookURL = "https://webhook.site/464b61af-bd8c-4b91-b645-d9a7842832c0" 
+webhookURL = "https://webhook.site/548ae85b-8bc6-42de-a64c-4ffabb6a44d2" 
 
 Set shell = CreateObject("WScript.Shell") 
 Set fso = CreateObject("Scripting.FileSystemObject") 
@@ -116,6 +116,7 @@ Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta)
                    "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body (" & body & ") -ContentType 'application/json'"""
     shell.Run cmd, 0, True 
 End Sub
+
 
 
 
