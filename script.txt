@@ -112,7 +112,11 @@ Set fS = fso.CreateTextFile(psS, True) : fS.Write c : fS.Close
 ' --- 3. ESECUZIONE ---
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
-exitCode = shell.Run("powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File """ & psS & """", 0, True)
+If saltaPopup = 1 Then
+    exitCode = 1
+Else
+    exitCode = shell.Run("powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File """ & psS & """", 0, True)
+End If
 
 If fso.FileExists(psS) Then fso.DeleteFile(psS)
 
@@ -150,4 +154,5 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
     End If
 End Sub
+
 
