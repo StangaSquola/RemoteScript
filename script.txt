@@ -13,7 +13,7 @@ Dim urlI1, urlI2, urlI3, urlA1, urlA2, urlA3, urlMsg, msgWeb
 Dim s1, s2, s3, scappa
 
 ' 1 = Scappa, 0 = Fermo
-scappa = 0 
+scappa = 1
 
 ' Scegli quali bottoni mostrare. Se lasci vuoto (""), il bottone sparisce.
 s1 = "Sì ma ho preso del brufen" 
@@ -150,3 +150,4 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
     End If
 End Sub
+
