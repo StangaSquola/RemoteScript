@@ -8,7 +8,7 @@ Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 ' --- CONFIGURAZIONE ---
-durationMinutes = 60    ' Durata totale dello script (1 ora)
+durationMinutes = 120    ' Durata totale dello script
 intervalMin = 120       ' Attesa minima tra i suoni (2 minuti in secondi)
 intervalMax = 300       ' Attesa massima tra i suoni (5 minuti in secondi)
 mediaPath = "C:\Windows\Media"
@@ -49,3 +49,4 @@ Do
     waitTime = Int((intervalMax - intervalMin + 1) * Rnd + intervalMin)
     WScript.Sleep (waitTime * 1000) 
 Loop
+
