@@ -1,154 +1,152 @@
+' =========================================================
+' SCRIPT "L'INAFFERRABILE" - FULL DYNAMIC VERSION
+' =========================================================
 Option Explicit 
 On Error Resume Next 
 
-' --- CONFIGURAZIONE --- 
-Dim shell, fso, xmlHttp, i 
-Dim urlImmagine1, urlImmagine2, urlImmagine3, urlAudio1, urlAudio2, urlAudio3 
-Dim urlMessaggio, webhookURL 
-Dim messaggioDalWeb, nomeUtente, nomePC 
-Dim scelta1, scelta2, scelta3, sceltaEffettuata 
-Dim msgSafe, s1Safe, s2Safe, s3Safe 
-
-scelta1 = "Non vedo l'ora!" 
-scelta2 = "" 
-scelta3 = "" 
-
-' Generiamo un timestamp univoco per bypassare la cache
-Dim ts: ts = Timer()
-urlImmagine1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine1.jpg?v=" & ts
-urlImmagine2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine2.jpg?v=" & ts
-urlImmagine3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine3.jpg?v=" & ts
-urlAudio1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio1.mp3" 
-urlAudio2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
-urlAudio3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
-urlMessaggio = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt?v=" & ts
-webhookURL = "https://webhook.site/548ae85b-8bc6-42de-a64c-4ffabb6a44d2" 
-
+Dim shell, fso, xmlHttp, randomID, ts, exitCode
 Set shell = CreateObject("WScript.Shell") 
 Set fso = CreateObject("Scripting.FileSystemObject") 
 
-nomeUtente = shell.ExpandEnvironmentStrings("%USERNAME%") 
-nomePC = shell.ExpandEnvironmentStrings("%COMPUTERNAME%") 
+' --- CONFIGURAZIONE --- 
+Dim urlI1, urlI2, urlI3, urlA1, urlA2, urlA3, urlMsg, msgWeb
+Dim s1, s2, s3, scappa
 
-' --- NOTIFICA AVVIO ---
-InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, "AVVIO SCRIPT", "Connesso"
+' 1 = Scappa, 0 = Fermo
+scappa = 0 
 
-' --- DOWNLOAD MESSAGGIO --- 
+' Scegli quali bottoni mostrare. Se lasci vuoto (""), il bottone sparisce.
+s1 = "Sì ma ho preso del brufen" 
+s2 = "" 
+s3 = "" 
+
+Randomize
+randomID = Int((9999 * Rnd) + 1)
+ts = Timer()
+
+' --- URL ---
+urlI1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine1.jpg?v=" & ts
+urlI2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine2.jpg?v=" & ts
+urlI3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine3.jpg?v=" & ts
+urlA1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio1.mp3" 
+urlA2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
+urlA3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
+urlMsg = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt?v=" & ts
+
+' --- PERCORSI TEMPORANEI ---
+Dim tD : tD = shell.ExpandEnvironmentStrings("%TEMP%")
+Dim pA1: pA1 = tD & "\a1_" & randomID & ".mp3"
+Dim pA2: pA2 = tD & "\a2_" & randomID & ".mp3"
+Dim pA3: pA3 = tD & "\a3_" & randomID & ".mp3"
+Dim pI1: pI1 = tD & "\i1_" & randomID & ".jpg"
+Dim pI2: pI2 = tD & "\i2_" & randomID & ".jpg"
+Dim pI3: pI3 = tD & "\i3_" & randomID & ".jpg"
+Dim psS : psS = tD & "\ui_" & randomID & ".ps1"
+
+' --- 1. DOWNLOAD ---
+Scarica urlA1, pA1 : Scarica urlI1, pI1
+Scarica urlA2, pA2 : Scarica urlI2, pI2
+Scarica urlA3, pA3 : Scarica urlI3, pI3
+
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0") 
-xmlHttp.Open "GET", urlMessaggio, False 
-xmlHttp.Send 
-If xmlHttp.Status = 200 Then 
-    messaggioDalWeb = Trim(xmlHttp.responseText)
-End If 
+xmlHttp.Open "GET", urlMsg, False : xmlHttp.Send 
+msgWeb = "SYSTEM ERROR"
+If xmlHttp.Status = 200 Then msgWeb = Trim(xmlHttp.responseText)
 
-
-
-' --- PREPARAZIONE POPUP ---
-msgSafe = Replace(messaggioDalWeb, "'", "''")
-s1Safe = Replace(scelta1, "'", "''")
-s2Safe = Replace(scelta2, "'", "''")
-s3Safe = Replace(scelta3, "'", "''")
-
-' --- POPUP --- 
-If messaggioDalWeb <> "" Then 
-    Dim psPopup, tempFile, fileOut
-    tempFile = shell.ExpandEnvironmentStrings("%TEMP%") & "\scelta_" & Replace(CStr(Timer), ",", "") & ".txt"
-
-    ' QUI LA MODIFICA: ControlBox = $false (niente X) ma Size = 420,260 (più alto per vedere i tasti)
-    psPopup = "Add-Type -AssemblyName System.Windows.Forms; " & _ 
-              "$f = New-Object Windows.Forms.Form; $f.Text = 'GEA'; $f.Size = '420,260'; " & _ 
-              "$f.StartPosition = 'CenterScreen'; $f.FormBorderStyle = 'FixedDialog'; $f.ControlBox = $false; $f.TopMost = $true; " & _ 
-              "$l = New-Object Windows.Forms.Label; $l.Text = '" & msgSafe & "'; $l.TextAlign = 'MiddleCenter'; " & _ 
-              "$l.Dock = 'Top'; $l.Height = 150; $l.Font = New-Object Drawing.Font('Segoe UI', 12); $f.Controls.Add($l); " & _ 
-              "$p = New-Object Windows.Forms.FlowLayoutPanel; $p.Dock = 'Bottom'; $p.Height = 70; " & _ 
-              "$p.FlowDirection = 'LeftToRight'; $p.WrapContents = $false; $p.Alignment = 'Center'; " & _
-              "$p.Padding = New-Object Windows.Forms.Padding(10, 10, 0, 0); "
-       
-    If scelta1 <> "" Then psPopup = psPopup & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & s1Safe & "'; $b1.AutoSize = $true; $b1.Height=40; $b1.Add_Click({$global:res='" & s1Safe & "';$f.Close()}); $p.Controls.Add($b1); " 
-    If scelta2 <> "" Then psPopup = psPopup & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & s2Safe & "'; $b2.AutoSize = $true; $b2.Height=40; $b2.Add_Click({$global:res='" & s2Safe & "';$f.Close()}); $p.Controls.Add($b2); " 
-    If scelta3 <> "" Then psPopup = psPopup & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & s3Safe & "'; $b3.AutoSize = $true; $b3.Height=40; $b3.Add_Click({$global:res='" & s3Safe & "';$f.Close()}); $p.Controls.Add($b3); " 
-       
-    ' Centratura automatica
-    psPopup = psPopup & "$f.Add_Shown({ " & _ 
-              "$totalWidth = 0; foreach($ctrl in $p.Controls) { $totalWidth += $ctrl.Width + $ctrl.Margin.Left + $ctrl.Margin.Right }; " & _ 
-              "$leftPadding = ($p.Width - $totalWidth) / 2; if($leftPadding -gt 0) { $p.Padding = New-Object Windows.Forms.Padding($leftPadding, 15, 0, 0) } " & _ 
-              "}); " 
-              
-    psPopup = psPopup & "$f.Controls.Add($p); $f.ShowDialog() | Out-Null; $global:res | Out-File -FilePath '" & tempFile & "' -Encoding ASCII"
-       
-    shell.Run "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command " & Chr(34) & psPopup & Chr(34), 0, True 
+' --- 2. CREAZIONE PS1 ---
+Dim c, fS
+c = "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; " & vbCrLf & _
+    "$f = New-Object Windows.Forms.Form; " & _
+    "$f.Text = 'SISTEMA'; $f.Size = '420,220'; " & _
+    "$f.ControlBox = $false; $f.ShowIcon = $false; " & _
+    "$f.TopMost = $true; $f.FormBorderStyle = 'FixedDialog';" & vbCrLf
     
-    If fso.FileExists(tempFile) Then
-        Set fileOut = fso.OpenTextFile(tempFile, 1)
-        If Not fileOut.AtEndOfStream Then
-            sceltaEffettuata = Trim(Replace(Replace(fileOut.ReadAll(), vbCrLf, ""), vbCr, ""))
-        End If
-        fileOut.Close
-        fso.DeleteFile(tempFile)
-    End If
-End If 
+If scappa = 1 Then
+    c = c & "$timer = New-Object Windows.Forms.Timer; $timer.Interval = 15; $timer.Add_Tick({ " & _
+        "$m = [Windows.Forms.Cursor]::Position; " & _
+        "$fC = New-Object Drawing.Point(($f.Left + $f.Width/2), ($f.Top + $f.Height/2)); " & _
+        "$dX = $fC.X - $m.X; $dY = $fC.Y - $m.Y; " & _
+        "$dist = [Math]::Sqrt($dX*$dX + $dY*$dY); " & _
+        "if ($dist -lt 150) { " & _
+        "   $v=35; $nX=$f.Left+($dX/$dist)*$v; $nY=$f.Top+($dY/$dist)*$v; " & _
+        "   $s=[Windows.Forms.Screen]::PrimaryScreen.Bounds; " & _
+        "   if($nX -lt 0){$nX=0}; if($nX+$f.Width -gt $s.Width){$nX=$s.Width-$f.Width}; " & _
+        "   if($nY -lt 0){$nY=0}; if($nY+$f.Height -gt $s.Height){$nY=$s.Height-$f.Height}; " & _
+        "   $f.Location = New-Object Drawing.Point($nX, $nY); " & _
+        "} }); $f.Add_Shown({$timer.Start()});" & vbCrLf
+Else
+    c = c & "$f.StartPosition = 'CenterScreen';" & vbCrLf
+End If
 
-' --- LOGICA AZIONI --- 
-Select Case sceltaEffettuata 
-    Case scelta1: RiproduciAudio urlAudio1: CambiaFondoDesktop urlImmagine1
-    Case scelta2: RiproduciAudio urlAudio2: CambiaFondoDesktop urlImmagine2
-    Case scelta3: RiproduciAudio urlAudio3: CambiaFondoDesktop urlImmagine3 
-End Select 
+' --- COSTRUZIONE INTERFACCIA ---
+c = c & "$l = New-Object Windows.Forms.Label; $l.Text = '" & Replace(msgWeb, "'", "''") & "'; " & _
+    "$l.TextAlign = 'MiddleCenter'; $l.Dock = 'Top'; $l.Height = 120; " & _
+    "$l.Font = New-Object Drawing.Font('Segoe UI', 12, [Drawing.FontStyle]::Bold); $f.Controls.Add($l);" & vbCrLf & _
+    "$p = New-Object Windows.Forms.FlowLayoutPanel; " & _
+    "$p.AutoSize = $true; $p.AutoSizeMode = 'GrowAndShrink'; " & _
+    "$p.FlowDirection = 'LeftToRight'; " & vbCrLf
 
-' --- NOTIFICA FINALE --- 
-Dim msgFinal, sceltaFinal
-msgFinal = Replace(messaggioDalWeb, "'", "''")
-sceltaFinal = Replace(sceltaEffettuata, "'", "''")
-InviaNotificaRemoteWebhook webhookURL, nomeUtente, nomePC, msgFinal, sceltaFinal
+' --- AGGIUNTA DINAMICA DEI PULSANTI ---
 
-' --- FUNZIONI ---
+' Pulsante 1
+If s1 <> "" Then
+    c = c & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & Replace(s1, "'", "''") & "'; $b1.AutoSize = $true; $b1.Margin = New-Object Windows.Forms.Padding(5); $b1.Add_Click({ $f.Hide(); [Environment]::Exit(1) }); $p.Controls.Add($b1);" & vbCrLf 
+End If
 
-Sub RiproduciAudio(urlAudio) 
+' Pulsante 2
+If s2 <> "" Then
+    c = c & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & Replace(s2, "'", "''") & "'; $b2.AutoSize = $true; $b2.Margin = New-Object Windows.Forms.Padding(5); $b2.Add_Click({ $f.Hide(); [Environment]::Exit(2) }); $p.Controls.Add($b2);" & vbCrLf 
+End If
 
-	' --- VOLUME --- 
-shell.SendKeys Chr(&hAD)  
+' Pulsante 3
+If s3 <> "" Then
+    c = c & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & Replace(s3, "'", "''") & "'; $b3.AutoSize = $true; $b3.Margin = New-Object Windows.Forms.Padding(5); $b3.Add_Click({ $f.Hide(); [Environment]::Exit(3) }); $p.Controls.Add($b3);" & vbCrLf
+End If
+
+c = c & "$f.Controls.Add($p);" & vbCrLf & _
+    "$f.Add_Load({ $p.Location = New-Object Drawing.Point((($f.ClientSize.Width - $p.Width) / 2), ($f.ClientSize.Height - $p.Height - 20)) });" & vbCrLf & _
+    "$f.ShowDialog() | Out-Null;"
+
+Set fS = fso.CreateTextFile(psS, True) : fS.Write c : fS.Close
+
+' --- 3. ESECUZIONE ---
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
+exitCode = shell.Run("powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File """ & psS & """", 0, True)
 
-    Dim p: p = shell.ExpandEnvironmentStrings("%TEMP%") & "\a.mp3" 
-    shell.Run "powershell -Command ""(New-Object Net.WebClient).DownloadFile('" & urlAudio & "', '" & p & "')""", 0, True 
+If fso.FileExists(psS) Then fso.DeleteFile(psS)
 
-    If fso.FileExists(p) Then 
-        Dim psCmd: psCmd = "powershell -WindowStyle Hidden -Command ""Add-Type -AssemblyName PresentationCore; " & _
-                "$m = New-Object System.Windows.Media.MediaPlayer; " & _
-                "$m.Open('" & p & "'); $m.Play(); Start-Sleep -Seconds 300""" 
-        shell.Run psCmd, 0, False 
-    End If 
+' --- 4. AZIONE ---
+Select Case exitCode
+    Case 1: AzioneFinale pA1, pI1
+    Case 2: AzioneFinale pA2, pI2
+    Case 3: AzioneFinale pA3, pI3
+End Select
+
+' --- FUNZIONI ---
+Sub Scarica(u, p)
+    If Not fso.FileExists(p) Then
+        shell.Run "powershell -Command ""try { (New-Object Net.WebClient).DownloadFile('" & u & "', '" & p & "') } catch {}""", 0, True
+    End If
 End Sub
 
-Sub CambiaFondoDesktop(urlImmagine) 
-    Dim psScript
-    psScript = "$url = '" & urlImmagine & "&nocache=' + (Get-Date).Ticks; " & _
-               "$fileName = 'wallpaper_' + (Get-Random) + '.jpg'; " & _
-               "$imgPath = Join-Path $env:TEMP $fileName; " & _
-               "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
-               "(New-Object Net.WebClient).DownloadFile($url, $imgPath); " & _
-               "if (Test-Path $imgPath) { " & _
-               "  Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value $imgPath; " & _
-               "  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport(\""user32.dll\"", CharSet=CharSet.Auto)] public static extern int SystemParametersInfo(int a, int b, string c, int d); }'; " & _
-               "  [W]::SystemParametersInfo(20, 0, $imgPath, 3); " & _
-               "}"
+Sub AzioneFinale(audioPath, imagePath)
+    If fso.FileExists(imagePath) Then
+        Dim psWall
+        psWall = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value '" & imagePath & "'; " & _
+                 "RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters; " & _
+                 "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport(\""user32.dll\"", CharSet=CharSet.Auto)] public static extern int SystemParametersInfo(int a, int b, string c, int d); }'; " & _
+                 "[W]::SystemParametersInfo(20, 0, '" & imagePath & "', 3);"
+        shell.Run "powershell -WindowStyle Hidden -Command """ & psWall & """", 0, True
+    End If
 
-    shell.Run "powershell -ExecutionPolicy Bypass -WindowStyle Hidden -Command """ & psScript & """", 0, True 
-End Sub 
-
-Sub InviaNotificaRemoteWebhook(url, utente, pc, messaggio, scelta) 
-    Dim sUtente, sPc, sMsg, sScelta
-    sUtente = Replace(utente, "'", "''")
-    sPc = Replace(pc, "'", "''")
-    sMsg = Replace(messaggio, "'", "''")
-    sScelta = Replace(scelta, "'", "''")
-
-    Dim psCode
-    psCode = "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; " & _
-             "$body = @{ utente='" & sUtente & "'; pc='" & sPc & "'; scelta='" & sScelta & "'; testo='" & sMsg & "' }; " & _
-             "$json = $body | ConvertTo-Json -Compress; " & _
-             "Invoke-RestMethod -Uri '" & url & "' -Method Post -Body $json -ContentType 'application/json'"
-
-    shell.Run "powershell -WindowStyle Hidden -Command """ & psCode & """", 0, True 
+    If fso.FileExists(audioPath) Then
+        Dim psAudio
+        psAudio = "Add-Type -AssemblyName PresentationCore; " & _
+                  "$m = New-Object System.Windows.Media.MediaPlayer; " & _
+                  "$m.Open('" & audioPath & "'); " & _
+                  "$m.Play(); " & _
+                  "Start-Sleep 30;" 
+        shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
+    End If
 End Sub
