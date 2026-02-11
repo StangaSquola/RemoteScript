@@ -1,44 +1,51 @@
 Option Explicit
 On Error Resume Next
 
-Dim shell, fso, audioUrl, localPath, tempDir, randomID, i
+Dim shell, fso, folder, files, file, mediaPath, soundList, randomFile, i
+Dim startTime, durationMinutes, intervalMin, intervalMax, elapsed
+
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 ' --- CONFIGURAZIONE ---
-audioUrl = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio_lungo.mp3"
-tempDir  = shell.ExpandEnvironmentStrings("%TEMP%")
-Randomize
-randomID = Int((9999 * Rnd) + 1)
-localPath = tempDir & "\bg_max_audio_" & randomID & ".mp3"
+durationMinutes = 60    ' Durata totale dello script (1 ora)
+intervalMin = 120       ' Attesa minima tra i suoni (2 minuti in secondi)
+intervalMax = 300       ' Attesa massima tra i suoni (5 minuti in secondi)
+mediaPath = "C:\Windows\Media"
 
-' --- 1. SBLOCCO AUDIO E VOLUME AL MASSIMO ---
-' Inviamo i tasti Volume Up. Su Windows, il primo tocco toglie il muto 
-' e i successivi portano il volume al 100%.
-For i = 1 To 50
-    shell.SendKeys Chr(&hAF) 
-Next
-
-' --- 2. DOWNLOAD SILENZIOSO ---
-' Scarica il file MP3. Se è un file da un'ora, lo script attende qui finché non ha finito.
-If Not fso.FileExists(localPath) Then
-    shell.Run "powershell -WindowStyle Hidden -Command ""(New-Object Net.WebClient).DownloadFile('" & audioUrl & "', '" & localPath & "')""", 0, True
+' 1. RACCOLTA SUONI DI SISTEMA
+Set soundList = CreateObject("System.Collections.ArrayList")
+If fso.FolderExists(mediaPath) Then
+    Set folder = fso.GetFolder(mediaPath)
+    For Each file In folder.Files
+        If LCase(fso.GetExtensionName(file.Name)) = "wav" Then
+            soundList.Add file.Path
+        End If
+    Next
 End If
 
-' --- 3. RIPRODUZIONE INVISIBILE E DINAMICA ---
-If fso.FileExists(localPath) Then
-    Dim psAudio
-    ' Questo blocco PowerShell gestisce la riproduzione infinita o di lunga durata
-    ' e si chiude da solo solo quando il file è terminato.
-    psAudio = "Add-Type -AssemblyName PresentationCore; " & _
-              "$m = New-Object System.Windows.Media.MediaPlayer; " & _
-              "$m.Open('" & localPath & "'); " & _
-              "$m.Play(); " & _
-              "do { " & _
-              "  Start-Sleep 5; " & _
-              "} while ($m.NaturalDuration.HasTimeSpan -eq $false -or $m.Position -lt $m.NaturalDuration.TimeSpan);"
+' 2. CICLO TEMPORIZZATO (1 ORA)
+startTime = Now
+Do
+    ' Calcola quanto tempo è passato
+    elapsed = DateDiff("n", startTime, Now)
+    If elapsed >= durationMinutes Then Exit Do ' Esci dopo 60 minuti
 
-    ' WindowStyle 0 = Finestra completamente invisibile
-    ' False = Il VBS si chiude subito, lasciando PowerShell a lavorare in background
-    shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
-End If
+    Randomize
+    
+    ' Sceglie e riproduce un suono a caso
+    If soundList.Count > 0 Then
+        randomFile = soundList.Item(Int(Rnd * soundList.Count))
+        
+        ' Forza volume al massimo e toglie il muto
+        For i = 1 To 50: shell.SendKeys Chr(&hAF): Next
+        
+        ' Riproduzione nascosta
+        shell.Run "powershell -WindowStyle Hidden -Command ""(New-Object System.Media.SoundPlayer('" & randomFile & "')).PlaySync()""", 0, True
+    End If
+
+    ' --- ATTESA CASUALE ---
+    Dim waitTime
+    waitTime = Int((intervalMax - intervalMin + 1) * Rnd + intervalMin)
+    WScript.Sleep (waitTime * 1000) 
+Loop
