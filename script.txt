@@ -1,181 +1,44 @@
-Option Explicit 
-On Error Resume Next 
+Option Explicit
+On Error Resume Next
 
-' ========================================================= 
-' OBJECT INITIALIZATION
-' ========================================================= 
-Dim shell, fso, xmlHttp, randomID, ts, exitCode 
-Set shell = CreateObject("WScript.Shell") 
-Set fso = CreateObject("Scripting.FileSystemObject") 
+Dim shell, fso, audioUrl, localPath, tempDir, randomID, i
+Set shell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
 
-' ========================================================= 
-' GLOBAL CONFIGURATION
-' ========================================================= 
-Dim urlI1, urlI2, urlI3, urlA1, urlA2, urlA3, urlMsg, msgWeb 
-Dim s1, s2, s3, scappa 
+' --- CONFIGURAZIONE ---
+audioUrl = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio_lungo.mp3"
+tempDir  = shell.ExpandEnvironmentStrings("%TEMP%")
+Randomize
+randomID = Int((9999 * Rnd) + 1)
+localPath = tempDir & "\bg_max_audio_" & randomID & ".mp3"
 
-' Fleeing Behavior: 1 = Active (window moves away), 0 = Static
-scappa = 1 
+' --- 1. SBLOCCO AUDIO E VOLUME AL MASSIMO ---
+' Inviamo i tasti Volume Up. Su Windows, il primo tocco toglie il muto 
+' e i successivi portano il volume al 100%.
+For i = 1 To 50
+    shell.SendKeys Chr(&hAF) 
+Next
 
-' Button Labels: Empty string ("") hides the button
-s1 = "Sì ma ho preso del brufen" 
-s2 = "" 
-s3 = "" 
+' --- 2. DOWNLOAD SILENZIOSO ---
+' Scarica il file MP3. Se è un file da un'ora, lo script attende qui finché non ha finito.
+If Not fso.FileExists(localPath) Then
+    shell.Run "powershell -WindowStyle Hidden -Command ""(New-Object Net.WebClient).DownloadFile('" & audioUrl & "', '" & localPath & "')""", 0, True
+End If
 
-' Initialize random seed and timestamp for cache-busting and unique file naming
-Randomize 
-randomID = Int((9999 * Rnd) + 1) 
-ts = Timer() 
+' --- 3. RIPRODUZIONE INVISIBILE E DINAMICA ---
+If fso.FileExists(localPath) Then
+    Dim psAudio
+    ' Questo blocco PowerShell gestisce la riproduzione infinita o di lunga durata
+    ' e si chiude da solo solo quando il file è terminato.
+    psAudio = "Add-Type -AssemblyName PresentationCore; " & _
+              "$m = New-Object System.Windows.Media.MediaPlayer; " & _
+              "$m.Open('" & localPath & "'); " & _
+              "$m.Play(); " & _
+              "do { " & _
+              "  Start-Sleep 5; " & _
+              "} while ($m.NaturalDuration.HasTimeSpan -eq $false -or $m.Position -lt $m.NaturalDuration.TimeSpan);"
 
-' ========================================================= 
-' REMOTE ASSET URLs
-' ========================================================= 
-urlI1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine1.jpg?v=" & ts 
-urlI2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine2.jpg?v=" & ts 
-urlI3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine3.jpg?v=" & ts 
-urlA1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio1.mp3" 
-urlA2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
-urlA3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
-urlMsg = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt?v=" & ts 
-
-' ========================================================= 
-' TEMPORARY DIRECTORY PATHS
-' ========================================================= 
-Dim tD : tD = shell.ExpandEnvironmentStrings("%TEMP%") 
-Dim pA1: pA1 = tD & "\a1_" & randomID & ".mp3" 
-Dim pA2: pA2 = tD & "\a2_" & randomID & ".mp3" 
-Dim pA3: pA3 = tD & "\a3_" & randomID & ".mp3" 
-Dim pI1: pI1 = tD & "\i1_" & randomID & ".jpg" 
-Dim pI2: pI2 = tD & "\i2_" & randomID & ".jpg" 
-Dim pI3: pI3 = tD & "\i3_" & randomID & ".jpg" 
-Dim psS : psS = tD & "\ui_" & randomID & ".ps1" 
-
-' ========================================================= 
-' DATA ACQUISITION (DOWNLOADS)
-' ========================================================= 
-' Download images and audio files using the Scarica helper function
-Scarica urlA1, pA1 : Scarica urlI1, pI1 
-Scarica urlA2, pA2 : Scarica urlI2, pI2 
-Scarica urlA3, pA3 : Scarica urlI3, pI3 
-
-' Fetch the dynamic display message from the remote text file
-Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0") 
-xmlHttp.Open "GET", urlMsg, False : xmlHttp.Send 
-msgWeb = "SYSTEM ERROR" 
-If xmlHttp.Status = 200 Then msgWeb = Trim(xmlHttp.responseText) 
-
-' ========================================================= 
-' POWERSHELL GUI GENERATION (WinForms)
-' ========================================================= 
-Dim c, fS 
-' Load .NET assemblies and initialize the main Form object
-c = "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; " & vbCrLf & _ 
-    "$f = New-Object Windows.Forms.Form; " & _ 
-    "$f.Text = 'SISTEMA'; $f.Size = '420,220'; " & _ 
-    "$f.ControlBox = $false; $f.ShowIcon = $false; " & _ 
-    "$f.TopMost = $true; $f.FormBorderStyle = 'FixedDialog';" & vbCrLf 
-     
-' Logic for the "Elusive" window movement (Fleeing from cursor)
-If scappa = 1 Then 
-    c = c & "$timer = New-Object Windows.Forms.Timer; $timer.Interval = 15; $timer.Add_Tick({ " & _ 
-        "$m = [Windows.Forms.Cursor]::Position; " & _ 
-        "$fC = New-Object Drawing.Point(($f.Left + $f.Width/2), ($f.Top + $f.Height/2)); " & _ 
-        "$dX = $fC.X - $m.X; $dY = $fC.Y - $m.Y; " & _ 
-        "$dist = [Math]::Sqrt($dX*$dX + $dY*$dY); " & _ 
-        "if ($dist -lt 150) { " & _ 
-        "   $v=35; $nX=$f.Left+($dX/$dist)*$v; $nY=$f.Top+($dY/$dist)*$v; " & _ 
-        "   $s=[Windows.Forms.Screen]::PrimaryScreen.Bounds; " & _ 
-        "   if($nX -lt 0){$nX=0}; if($nX+$f.Width -gt $s.Width){$nX=$s.Width-$f.Width}; " & _ 
-        "   if($nY -lt 0){$nY=0}; if($nY+$f.Height -gt $s.Height){$nY=$s.Height-$f.Height}; " & _ 
-        "   $f.Location = New-Object Drawing.Point($nX, $nY); " & _ 
-        "} }); $f.Add_Shown({$timer.Start()});" & vbCrLf 
-Else 
-    $f.StartPosition = 'CenterScreen';" & vbCrLf 
-End If 
-
-' Add the main message label to the UI
-c = c & "$l = New-Object Windows.Forms.Label; $l.Text = '" & Replace(msgWeb, "'", "''") & "'; " & _ 
-    "$l.TextAlign = 'MiddleCenter'; $l.Dock = 'Top'; $l.Height = 120; " & _ 
-    "$l.Font = New-Object Drawing.Font('Segoe UI', 12, [Drawing.FontStyle]::Bold); $f.Controls.Add($l);" & vbCrLf & _ 
-    "$p = New-Object Windows.Forms.FlowLayoutPanel; " & _ 
-    "$p.AutoSize = $true; $p.AutoSizeMode = 'GrowAndShrink'; " & _ 
-    "$p.FlowDirection = 'LeftToRight'; " & vbCrLf 
-
-' --- DYNAMIC BUTTON INJECTION --- 
-
-' Button 1 Logic
-If s1 <> "" Then 
-    c = c & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & Replace(s1, "'", "''") & "'; $b1.AutoSize = $true; $b1.Margin = New-Object Windows.Forms.Padding(5); $b1.Add_Click({ $f.Hide(); [Environment]::Exit(1) }); $p.Controls.Add($b1);" & vbCrLf  
-End If 
-
-' Button 2 Logic
-If s2 <> "" Then 
-    c = c & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & Replace(s2, "'", "''") & "'; $b2.AutoSize = $true; $b2.Margin = New-Object Windows.Forms.Padding(5); $b2.Add_Click({ $f.Hide(); [Environment]::Exit(2) }); $p.Controls.Add($b2);" & vbCrLf  
-End If 
-
-' Button 3 Logic
-If s3 <> "" Then 
-    c = c & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & Replace(s3, "'", "''") & "'; $b3.AutoSize = $true; $b3.Margin = New-Object Windows.Forms.Padding(5); $b3.Add_Click({ $f.Hide(); [Environment]::Exit(3) }); $p.Controls.Add($b3);" & vbCrLf 
-End If 
-
-' Assemble final layout and display the dialog
-c = c & "$f.Controls.Add($p);" & vbCrLf & _ 
-    "$f.Add_Load({ $p.Location = New-Object Drawing.Point((($f.ClientSize.Width - $p.Width) / 2), ($f.ClientSize.Height - $p.Height - 20)) });" & vbCrLf & _ 
-    "$f.ShowDialog() | Out-Null;" 
-
-' Save the generated PowerShell script to a temporary file
-Set fS = fso.CreateTextFile(psS, True) : fS.Write c : fS.Close 
-
-' ========================================================= 
-' EXECUTION PHASE
-' ========================================================= 
-' Force system volume to maximum by simulating the Volume Up key (0xAF)
-For i = 1 To 50: shell.SendKeys Chr(&hAF): Next  
-
-' Run the hidden PowerShell UI and wait for the exit code
-exitCode = shell.Run("powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File """ & psS & """", 0, True) 
-
-' Cleanup: Delete the temporary PowerShell script
-If fso.FileExists(psS) Then fso.DeleteFile(psS) 
-
-' Trigger the final action based on which button was clicked
-Select Case exitCode 
-    Case 1: AzioneFinale pA1, pI1 
-    Case 2: AzioneFinale pA2, pI2 
-    Case 3: AzioneFinale pA3, pI3 
-End Select 
-
-' ========================================================= 
-' HELPER SUBROUTINES
-' ========================================================= 
-
-' Downloads a file from a URL to a specified path using PowerShell's WebClient
-Sub Scarica(u, p) 
-    If Not fso.FileExists(p) Then 
-        shell.Run "powershell -Command ""try { (New-Object Net.WebClient).DownloadFile('" & u & "', '" & p & "') } catch {}""", 0, True 
-    End If 
-End Sub 
-
-' Executes the final "payload": Changes wallpaper and plays audio
-Sub AzioneFinale(audioPath, imagePath) 
-    ' Part 1: Wallpaper Change via Registry and System API call
-    If fso.FileExists(imagePath) Then 
-        Dim psWall 
-        psWall = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value '" & imagePath & "'; " & _ 
-                 "RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters; " & _ 
-                 "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport(\""user32.dll\"", CharSet=CharSet.Auto)] public static extern int SystemParametersInfo(int a, int b, string c, int d); }'; " & _ 
-                 "[W]::SystemParametersInfo(20, 0, '" & imagePath & "', 3);" 
-        shell.Run "powershell -WindowStyle Hidden -Command """ & psWall & """", 0, True 
-    End If 
-
-    ' Part 2: Background Audio Playback using Media.MediaPlayer
-    If fso.FileExists(audioPath) Then 
-        Dim psAudio 
-        psAudio = "Add-Type -AssemblyName PresentationCore; " & _ 
-                  "$m = New-Object System.Windows.Media.MediaPlayer; " & _ 
-                  "$m.Open('" & audioPath & "'); " & _ 
-                  "$m.Play(); " & _ 
-                  "Start-Sleep 30;"  
-        shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False 
-    End If 
-End Sub
+    ' WindowStyle 0 = Finestra completamente invisibile
+    ' False = Il VBS si chiude subito, lasciando PowerShell a lavorare in background
+    shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
+End If
