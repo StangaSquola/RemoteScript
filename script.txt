@@ -18,8 +18,8 @@ Dim s1, s2, s3, scappa
 scappa = 1 
 
 ' Button Labels: Empty string ("") hides the button
-s1 = "Sì ma ho preso del brufen" 
-s2 = "" 
+s1 = "Ammetto le mie colpe" 
+s2 = "Colpevole" 
 s3 = "" 
 
 ' Initialize random seed and timestamp for cache-busting and unique file naming
@@ -140,8 +140,8 @@ If fso.FileExists(psS) Then fso.DeleteFile(psS)
 
 ' Trigger the final action based on which button was clicked
 Select Case exitCode 
-    Case 1: AzioneFinale pA1, pI1 
-    Case 2: AzioneFinale pA2, pI2 
+    Case 1: AzioneFinale  pI1 
+    Case 2: AzioneFinale  pI2 
     Case 3: AzioneFinale pA3, pI3 
 End Select 
 
@@ -179,3 +179,4 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False 
     End If 
 End Sub
+
