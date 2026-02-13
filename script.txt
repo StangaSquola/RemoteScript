@@ -16,7 +16,7 @@ Dim s1, s2, s3, scappa
 scappa = 0 
 
 ' Scegli quali bottoni mostrare. Se lasci vuoto (""), il bottone sparisce.
-s1 = "OK" 
+s1 = "Ammetto le mie colpe" 
 s2 = "" 
 s3 = "" 
 
@@ -57,7 +57,7 @@ If xmlHttp.Status = 200 Then msgWeb = Trim(xmlHttp.responseText)
 Dim c, fS
 c = "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; " & vbCrLf & _
     "$f = New-Object Windows.Forms.Form; " & _
-    "$f.Text = 'SISTEMA'; $f.Size = '420,220'; " & _
+    "$f.Text = 'GEA'; $f.Size = '420,220'; " & _
     "$f.ControlBox = $false; $f.ShowIcon = $false; " & _
     "$f.TopMost = $true; $f.FormBorderStyle = 'FixedDialog';" & vbCrLf
     
@@ -150,3 +150,4 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
     End If
 End Sub
+
