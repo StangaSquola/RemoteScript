@@ -19,7 +19,7 @@ scappa = 1
 
 ' Button Labels: Empty string ("") hides the button
 s1 = "Ammetto le mie colpe" 
-s2 = "Colpevole" 
+s2 = "" 
 s3 = "" 
 
 ' Initialize random seed and timestamp for cache-busting and unique file naming
@@ -179,4 +179,5 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False 
     End If 
 End Sub
+
 
