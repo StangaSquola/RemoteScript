@@ -1,5 +1,5 @@
 ' =========================================================
-' SCRIPT "L'INAFFERRABILE" - FULL DYNAMIC VERSION
+' SCRIPT "L'INAFFERRABILE" - FULL DYNAMIC VERSION (FIXED)
 ' =========================================================
 Option Explicit 
 On Error Resume Next 
@@ -10,12 +10,15 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 
 ' --- CONFIGURAZIONE --- 
 Dim urlI1, urlI2, urlI3, urlA1, urlA2, urlA3, urlMsg, msgWeb
-Dim s1, s2, s3, scappa
+Dim s1, s2, s3, scappa, mostraPopup
 
-' 1 = Scappa, 0 = Fermo
+' 1 = Il popup scappa dal mouse, 0 = Fermo al centro
 scappa = 0 
 
-' Scegli quali bottoni mostrare. Se lasci vuoto (""), il bottone sparisce.
+' 1 = Mostra interfaccia con bottoni, 0 = Esecuzione Automatica immediata
+mostraPopup = 0
+
+' Testo dei bottoni (se vuoti "", il bottone non appare)
 s1 = "Ammetto le mie colpe" 
 s2 = "" 
 s3 = "" 
@@ -24,7 +27,7 @@ Randomize
 randomID = Int((9999 * Rnd) + 1)
 ts = Timer()
 
-' --- URL ---
+' --- URL RISORSE ---
 urlI1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine1.jpg?v=" & ts
 urlI2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine2.jpg?v=" & ts
 urlI3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagine3.jpg?v=" & ts
@@ -43,85 +46,90 @@ Dim pI2: pI2 = tD & "\i2_" & randomID & ".jpg"
 Dim pI3: pI3 = tD & "\i3_" & randomID & ".jpg"
 Dim psS : psS = tD & "\ui_" & randomID & ".ps1"
 
-' --- 1. DOWNLOAD ---
+' --- 1. DOWNLOAD RISORSE ---
 Scarica urlA1, pA1 : Scarica urlI1, pI1
 Scarica urlA2, pA2 : Scarica urlI2, pI2
 Scarica urlA3, pA3 : Scarica urlI3, pI3
 
+' Recupero messaggio dinamico dal web
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0") 
 xmlHttp.Open "GET", urlMsg, False : xmlHttp.Send 
 msgWeb = "SYSTEM ERROR"
 If xmlHttp.Status = 200 Then msgWeb = Trim(xmlHttp.responseText)
 
-' --- 2. CREAZIONE PS1 ---
+' --- 2. COSTRUZIONE INTERFACCIA (Solo se mostraPopup = 1) ---
 Dim c, fS
-c = "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; " & vbCrLf & _
-    "$f = New-Object Windows.Forms.Form; " & _
-    "$f.Text = 'GEA'; $f.Size = '420,220'; " & _
-    "$f.ControlBox = $false; $f.ShowIcon = $false; " & _
-    "$f.TopMost = $true; $f.FormBorderStyle = 'FixedDialog';" & vbCrLf
-    
-If scappa = 1 Then
-    c = c & "$timer = New-Object Windows.Forms.Timer; $timer.Interval = 15; $timer.Add_Tick({ " & _
-        "$m = [Windows.Forms.Cursor]::Position; " & _
-        "$fC = New-Object Drawing.Point(($f.Left + $f.Width/2), ($f.Top + $f.Height/2)); " & _
-        "$dX = $fC.X - $m.X; $dY = $fC.Y - $m.Y; " & _
-        "$dist = [Math]::Sqrt($dX*$dX + $dY*$dY); " & _
-        "if ($dist -lt 150) { " & _
-        "   $v=35; $nX=$f.Left+($dX/$dist)*$v; $nY=$f.Top+($dY/$dist)*$v; " & _
-        "   $s=[Windows.Forms.Screen]::PrimaryScreen.Bounds; " & _
-        "   if($nX -lt 0){$nX=0}; if($nX+$f.Width -gt $s.Width){$nX=$s.Width-$f.Width}; " & _
-        "   if($nY -lt 0){$nY=0}; if($nY+$f.Height -gt $s.Height){$nY=$s.Height-$f.Height}; " & _
-        "   $f.Location = New-Object Drawing.Point($nX, $nY); " & _
-        "} }); $f.Add_Shown({$timer.Start()});" & vbCrLf
-Else
-    c = c & "$f.StartPosition = 'CenterScreen';" & vbCrLf
+If mostraPopup = 1 Then
+    c = "Add-Type -AssemblyName System.Windows.Forms, System.Drawing; " & vbCrLf & _
+        "$f = New-Object Windows.Forms.Form; " & _
+        "$f.Text = 'GEA'; $f.Size = '420,220'; " & _
+        "$f.ControlBox = $false; $f.ShowIcon = $false; " & _
+        "$f.TopMost = $true; $f.FormBorderStyle = 'FixedDialog';" & vbCrLf
+        
+    If scappa = 1 Then
+        c = c & "$timer = New-Object Windows.Forms.Timer; $timer.Interval = 15; $timer.Add_Tick({ " & _
+            "$m = [Windows.Forms.Cursor]::Position; " & _
+            "$fC = New-Object Drawing.Point(($f.Left + $f.Width/2), ($f.Top + $f.Height/2)); " & _
+            "$dX = $fC.X - $m.X; $dY = $fC.Y - $m.Y; " & _
+            "$dist = [Math]::Sqrt($dX*$dX + $dY*$dY); " & _
+            "if ($dist -lt 150) { " & _
+            "   $v=35; $nX=$f.Left+($dX/$dist)*$v; $nY=$f.Top+($dY/$dist)*$v; " & _
+            "   $s=[Windows.Forms.Screen]::PrimaryScreen.Bounds; " & _
+            "   if($nX -lt 0){$nX=0}; if($nX+$f.Width -gt $s.Width){$nX=$s.Width-$f.Width}; " & _
+            "   if($nY -lt 0){$nY=0}; if($nY+$f.Height -gt $s.Height){$nY=$s.Height-$f.Height}; " & _
+            "   $f.Location = New-Object Drawing.Point($nX, $nY); " & _
+            "} }); $f.Add_Shown({$timer.Start()});" & vbCrLf
+    Else
+        c = c & "$f.StartPosition = 'CenterScreen';" & vbCrLf
+    End If
+
+    c = c & "$l = New-Object Windows.Forms.Label; $l.Text = '" & Replace(msgWeb, "'", "''") & "'; " & _
+        "$l.TextAlign = 'MiddleCenter'; $l.Dock = 'Top'; $l.Height = 120; " & _
+        "$l.Font = New-Object Drawing.Font('Segoe UI', 12, [Drawing.FontStyle]::Bold); $f.Controls.Add($l);" & vbCrLf & _
+        "$p = New-Object Windows.Forms.FlowLayoutPanel; " & _
+        "$p.AutoSize = $true; $p.AutoSizeMode = 'GrowAndShrink'; " & _
+        "$p.FlowDirection = 'LeftToRight'; " & vbCrLf
+
+    If s1 <> "" Then
+        c = c & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & Replace(s1, "'", "''") & "'; $b1.AutoSize = $true; $b1.Margin = New-Object Windows.Forms.Padding(5); $b1.Add_Click({ $f.Hide(); [Environment]::Exit(1) }); $p.Controls.Add($b1);" & vbCrLf 
+    End If
+    If s2 <> "" Then
+        c = c & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & Replace(s2, "'", "''") & "'; $b2.AutoSize = $true; $b2.Margin = New-Object Windows.Forms.Padding(5); $b2.Add_Click({ $f.Hide(); [Environment]::Exit(2) }); $p.Controls.Add($b2);" & vbCrLf 
+    End If
+    If s3 <> "" Then
+        c = c & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & Replace(s3, "'", "''") & "'; $b3.AutoSize = $true; $b3.Margin = New-Object Windows.Forms.Padding(5); $b3.Add_Click({ $f.Hide(); [Environment]::Exit(3) }); $p.Controls.Add($b3);" & vbCrLf
+    End If
+
+    c = c & "$f.Controls.Add($p);" & vbCrLf & _
+        "$f.Add_Load({ $p.Location = New-Object Drawing.Point((($f.ClientSize.Width - $p.Width) / 2), ($f.ClientSize.Height - $p.Height - 20)) });" & vbCrLf & _
+        "$f.ShowDialog() | Out-Null;"
 End If
-
-' --- COSTRUZIONE INTERFACCIA ---
-c = c & "$l = New-Object Windows.Forms.Label; $l.Text = '" & Replace(msgWeb, "'", "''") & "'; " & _
-    "$l.TextAlign = 'MiddleCenter'; $l.Dock = 'Top'; $l.Height = 120; " & _
-    "$l.Font = New-Object Drawing.Font('Segoe UI', 12, [Drawing.FontStyle]::Bold); $f.Controls.Add($l);" & vbCrLf & _
-    "$p = New-Object Windows.Forms.FlowLayoutPanel; " & _
-    "$p.AutoSize = $true; $p.AutoSizeMode = 'GrowAndShrink'; " & _
-    "$p.FlowDirection = 'LeftToRight'; " & vbCrLf
-
-' --- AGGIUNTA DINAMICA DEI PULSANTI ---
-
-' Pulsante 1
-If s1 <> "" Then
-    c = c & "$b1 = New-Object Windows.Forms.Button; $b1.Text = '" & Replace(s1, "'", "''") & "'; $b1.AutoSize = $true; $b1.Margin = New-Object Windows.Forms.Padding(5); $b1.Add_Click({ $f.Hide(); [Environment]::Exit(1) }); $p.Controls.Add($b1);" & vbCrLf 
-End If
-
-' Pulsante 2
-If s2 <> "" Then
-    c = c & "$b2 = New-Object Windows.Forms.Button; $b2.Text = '" & Replace(s2, "'", "''") & "'; $b2.AutoSize = $true; $b2.Margin = New-Object Windows.Forms.Padding(5); $b2.Add_Click({ $f.Hide(); [Environment]::Exit(2) }); $p.Controls.Add($b2);" & vbCrLf 
-End If
-
-' Pulsante 3
-If s3 <> "" Then
-    c = c & "$b3 = New-Object Windows.Forms.Button; $b3.Text = '" & Replace(s3, "'", "''") & "'; $b3.AutoSize = $true; $b3.Margin = New-Object Windows.Forms.Padding(5); $b3.Add_Click({ $f.Hide(); [Environment]::Exit(3) }); $p.Controls.Add($b3);" & vbCrLf
-End If
-
-c = c & "$f.Controls.Add($p);" & vbCrLf & _
-    "$f.Add_Load({ $p.Location = New-Object Drawing.Point((($f.ClientSize.Width - $p.Width) / 2), ($f.ClientSize.Height - $p.Height - 20)) });" & vbCrLf & _
-    "$f.ShowDialog() | Out-Null;"
-
-Set fS = fso.CreateTextFile(psS, True) : fS.Write c : fS.Close
 
 ' --- 3. ESECUZIONE ---
+' Alza il volume al massimo (Chr(&hAF) è il tasto Volume Up)
+Dim i
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
-exitCode = shell.Run("powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File """ & psS & """", 0, True)
+If mostraPopup = 1 Then
+    ' Crea ed esegue il file PowerShell temporaneo per la UI
+    Set fS = fso.CreateTextFile(psS, True)
+    fS.Write c
+    fS.Close
+    
+    exitCode = shell.Run("powershell -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File """ & psS & """", 0, True)
+    
+    If fso.FileExists(psS) Then fso.DeleteFile(psS)
 
-If fso.FileExists(psS) Then fso.DeleteFile(psS)
-
-' --- 4. AZIONE ---
-Select Case exitCode
-    Case 1: AzioneFinale pA1, pI1
-    Case 2: AzioneFinale pA2, pI2
-    Case 3: AzioneFinale pA3, pI3
-End Select
+    ' Azione finale basata sull'Exit Code restituito da PowerShell
+    Select Case exitCode
+        Case 1: AzioneFinale pA1, pI1
+        Case 2: AzioneFinale pA2, pI2
+        Case 3: AzioneFinale pA3, pI3
+    End Select
+Else
+    ' Esecuzione Automatica del primo payload senza mostrare nulla
+    AzioneFinale pA1, pI1
+End If
 
 ' --- FUNZIONI ---
 Sub Scarica(u, p)
@@ -131,6 +139,7 @@ Sub Scarica(u, p)
 End Sub
 
 Sub AzioneFinale(audioPath, imagePath)
+    ' 1. Cambio Wallpaper tramite Registro e API User32
     If fso.FileExists(imagePath) Then
         Dim psWall
         psWall = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value '" & imagePath & "'; " & _
@@ -140,6 +149,7 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psWall & """", 0, True
     End If
 
+    ' 2. Riproduzione Audio (30 secondi)
     If fso.FileExists(audioPath) Then
         Dim psAudio
         psAudio = "Add-Type -AssemblyName PresentationCore; " & _
@@ -150,4 +160,3 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
     End If
 End Sub
-
