@@ -16,7 +16,7 @@ Dim s1, s2, s3, scappa, mostraPopup
 scappa = 0 
 
 ' 1 = Mostra interfaccia con bottoni, 0 = Esecuzione Automatica immediata
-mostraPopup = 0
+mostraPopup = 1
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
 s1 = "Ammetto le mie colpe" 
@@ -160,3 +160,4 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psAudio & """", 0, False
     End If
 End Sub
+
