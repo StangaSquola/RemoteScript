@@ -19,7 +19,7 @@ scappa = 0
 mostraPopup = 1
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
-s1 = "Mi aspetto un aumento" 
+s1 = "Grazie, darei la vita per GEA" 
 s2 = "" 
 s3 = "" 
 
