@@ -16,7 +16,7 @@ Dim s1, s2, s3, scappa, mostraPopup
 scappa = 0 
 
 ' 1 = Mostra interfaccia con bottoni, 0 = Esecuzione Automatica immediata
-mostraPopup = 1
+mostraPopup = 0
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
 s1 = "Grazie, darei la vita per GEA" 
