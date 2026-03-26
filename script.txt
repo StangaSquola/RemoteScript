@@ -19,9 +19,9 @@ scappa = 0
 mostraPopup = 1
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
-s1 = "UNA DI NOI" 
+s1 = "Lo so, è colpa mia" 
 s2 = "" 
-s3 = "" 
+s3 = ""
 
 Randomize
 randomID = Int((9999 * Rnd) + 1)
