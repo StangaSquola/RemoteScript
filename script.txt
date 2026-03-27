@@ -19,7 +19,7 @@ scappa = 0
 mostraPopup = 1
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
-s1 = "Lo so, è colpa mia" 
+s1 = "È da questa mattina che mi alleno" 
 s2 = "" 
 s3 = ""
 
