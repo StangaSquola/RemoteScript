@@ -19,7 +19,7 @@ scappa = 0
 mostraPopup = 1
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
-s1 = "Sì Sì, Tutte le caramelle che vuoi" 
+s1 = "Di che tipo?" 
 s2 = "" 
 s3 = ""
 
