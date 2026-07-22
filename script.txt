@@ -19,8 +19,8 @@ scappa = 0
 mostraPopup = 1
 
 ' Testo dei bottoni (se vuoti "", il bottone non appare)
-s1 = "Di che tipo?" 
-s2 = "" 
+s1 = "So mica io" 
+s2 = "Mi licenzio" 
 s3 = ""
 
 Randomize
